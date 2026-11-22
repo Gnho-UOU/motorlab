@@ -20,6 +20,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
 import prius_full as pf  # noqa: E402
+import prius_sector as ps  # noqa: E402
 import prius_run as pr   # noqa: E402  (park, inverse_park)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +30,7 @@ AGE_MAP = ROOT / "data" / "flux_maps" / "prius2004_xfemm_delta0_25A.csv"
 OUT_DIR = ROOT / "data" / "fea"
 CROSS_POINTS = [(0, 50), (0, 150), (0, 250), (-50, 100), (-100, 150), (-100, 250), (-150, 100), (-150, 200),
                 (-200, 150), (-250, 100), (-250, 250), (-100, 0)]
-LOCKED_CURRENTS = [50, 75, 100, 125, 150, 200, 250]
+LOCKED_CURRENTS = [int(x) for x in os.environ.get("PRIUS_LOCKED_CURRENTS", "50,75,100,125,150,200,250").split(",")]
 LOCKED_ANGLES_DEG = [k * 3.75 for k in range(16)]      # 0 ~ 56.25° (ORNL 측정 창 44°를 거울 방향까지 덮는다)
 
 
@@ -59,13 +60,26 @@ def crosscheck(out: Path) -> None:
     print(f"교차 검증 {len(CROSS_POINTS)}점, {time.time() - t0:.0f}s -> {out}")
 
 
-MAP_HEADER = """# 출처: FEA 계산 결과. 형상·재료는 data/benchmarks/prius2004_geometry.json (pyleecan Toyota_Prius.json, 제3자 모델, ORNL 원문 값이 아니며 미검증).
-# 솔버: xfemm femmcli (커밋 132515c, macOS 이식성 패치 3종, femm/build_xfemm_macos.sh). 2D 정자장, 비선형 BH(철심 M400-50A, 출처 미확인), 자석 Br20 = 1.24 T, mur = 1.05 (pyleecan 값).
+MAP_HEADER = """# 출처: FEA 계산 결과. 형상·재료는 data/benchmarks/{geom}  ({what})
+# 솔버: xfemm femmcli (커밋 132515c, macOS 이식성 패치 3종, femm/build_xfemm_macos.sh). 2D 정자장, 비선형 BH(철심 M400-50A, 출처 미확인), 자석 {magnet}.
 # 방법: 전체 모터(360°, 48슬롯, 8극), 공극까지 메시(AGE 안 씀), 쇄교자속은 상 회로에서 직접 읽음. 회전자 0°와 3.75°(슬롯 피치 7.5°의 절반) 두 위치의 평균(슬롯 맥동 기본 성분 상쇄).
 # dq: 크기 불변 Park 변환, d축 = 자석 N극 축, A상 축 대비 전기각 150° + 4·(회전자 각도). 전류는 상 첨두값.
 # 한계: 엔드턴 누설 인덕턴스 없음(2D). 자석 온도 20 °C 가정. torque_Nm은 두 위치 Henrotte 토크의 평균(비교용, 위치 평균이라 자속 기반 토크와 가깝다).
 # 단위: id_A, iq_A [A], psi_d_Wb, psi_q_Wb [Wb], torque_Nm [N·m]
 """
+
+
+def map_header() -> str:
+    """CSV 머리 주석. 형상 파일과 자석 값은 실제로 쓴 값에서 읽는다(손으로 적지 않는다)."""
+    g = pf.load_geometry()
+    mag = g["magnet"]
+    br = BR_OVERRIDE if BR_OVERRIDE is not None else mag["Br20_T"]
+    note = f"Br20 = {br} T, mur = {mag['mur']}"
+    if BR_OVERRIDE is not None:
+        note += f" (Br은 보정값: ORNL 무부하 역기전력 상수 환산 |ψ| = 0.174 Wb에 맞춤. 형상 파일의 {mag['Br20_T']} T가 아니다)"
+    return MAP_HEADER.format(geom=ps.GEOMETRY_JSON.name, what=g["__source__"]["what"], magnet=note)
+
+
 MAP_POSITIONS_DEG = (0.0, 3.75)
 
 
@@ -79,10 +93,7 @@ def fluxmap(out: Path) -> None:
                 a = line.split(",")
                 done.add((round(float(a[0]), 6), round(float(a[1]), 6)))
     else:
-        hdr = MAP_HEADER
-        if BR_OVERRIDE is not None:
-            hdr = hdr.replace("자석 Br20 = 1.24 T, mur = 1.05 (pyleecan 값)",
-                              f"자석 Br20 = {BR_OVERRIDE} T (보정값: ORNL 무부하 역기전력 상수 환산 |ψ| = 0.174 Wb에 맞춤. pyleecan의 1.24 T가 아니다), mur = 1.05")
+        hdr = map_header()
         out.write_text(hdr + "id_A,iq_A,psi_d_Wb,psi_q_Wb,torque_Nm\n")
     t0 = time.time()
     for i in ids:

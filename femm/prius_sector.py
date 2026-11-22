@@ -1,6 +1,6 @@
 """2004 Prius 구동모터의 1극(45°) 섹터 FEMM 모델 생성기. (FEMM 또는 xfemm `femmcli`에서 실행)
 
-형상·재료 값은 data/benchmarks/prius2004_geometry.json (제3자 모델, 미검증)에서 읽는다. 점 좌표 정의는 pyleecan(Apache-2.0)의
+형상·재료 값은 data/benchmarks/prius2004_geometry_ornl_pocket.json (ORNL 값 + 포켓 가설)에서 읽는다. PRIUS_GEOMETRY 환경변수로 다른 파일을 고를 수 있다(구형상: prius2004_geometry.json). 점 좌표 정의는 pyleecan(Apache-2.0)의
 SlotW11(고정자 슬롯), HoleM50(회전자 V자 구멍) 정의를 옮겼다. 이 모터는 8극이라 일부 섹터만 모델링한다. poles=2(기본): N·S극 한 쌍(90°, 12슬롯)을 주기(periodic) 경계로 닫는다 — xfemm이
 자체 벤치마크로 검증한 경로다. poles=1: 한 극(45°)을 반대칭 경계로 닫는다(xfemm에서 결과가 일관되지 않아 쓰지 않는다). 회전자 위치는 공극 요소(AGE)의 안쪽 각도로 바꾸므로 메시를 다시 만들 필요가 없다.
 
@@ -19,7 +19,8 @@ from pathlib import Path
 import numpy as np
 from scipy.optimize import fsolve
 
-GEOMETRY_JSON = Path(__file__).resolve().parents[1] / "data" / "benchmarks" / "prius2004_geometry.json"
+import os
+GEOMETRY_JSON = Path(os.environ.get("PRIUS_GEOMETRY") or Path(__file__).resolve().parents[1] / "data" / "benchmarks" / "prius2004_geometry_ornl_pocket.json")
 MU0 = 4e-7 * math.pi
 
 
@@ -183,10 +184,15 @@ def build_sector(g: dict, mesh: dict | None = None, poles: int = 2) -> Sector:
             sec.edges += [Edge("seg", P(h[a]), P(h[b])) for a, b in seg_pairs]
             lo, hi = sorted((h["Z1"], h["Z9"]), key=cmath.phase)                   # 구멍 바깥 호(반지름 Rext-H1)
             sec.edges.append(Edge("arc", P(lo), P(hi), math.degrees(cmath.phase(hi) - cmath.phase(lo))))
+            if g["rotor"]["hole_HoleM50"].get("air_strip_below_magnet"):
+                sec.edges.append(Edge("seg", P(h["Z6"]), P(h["Z3"])))
         for h, d, nm in ((lower, mag_dir, "magnet_lower"), (upper, -mag_dir, "magnet_upper")):
-            cen = sum(h[k] for k in ("Z8", "Z8c", "Z3", "Z4", "Z5", "Z6")) / 6
+            strip = bool(g["rotor"]["hole_HoleM50"].get("air_strip_below_magnet"))   # True: 자석 = Z8·Z8c·Z3·Z6 사각형, 그 아래(Z6-Z3-Z4-Z5)는 공기
+            cen = sum(h[k] for k in (("Z8", "Z8c", "Z3", "Z6") if strip else ("Z8", "Z8c", "Z3", "Z4", "Z5", "Z6"))) / (4 if strip else 6)
             sec.labels.append(Label(P(cen), "Magnet", m["magnet"], magdir_deg=d + math.degrees(off) + flip,
                                     name=f"{nm}{j}"))
+            if strip:
+                sec.labels.append(Label(P(sum(h[k] for k in ("Z6", "Z3", "Z4", "Z5")) / 4), "Air", m["rotor"], name=f"strip_{nm}{j}"))
             sec.labels.append(Label(P(sum(h[k] for k in ("Z1", "Z2", "Z3", "Z8c", "Z9")) / 5), "Air", m["rotor"],
                                     name=f"pocket{j}"))
         sec.labels.append(Label(P((lower["Z8"] + lower["Z6"] + lower["Z7"] + upper["Z6"]) / 4), "Air", m["rotor"],

@@ -56,7 +56,8 @@ def max_torque_curve(model, limits, speeds) -> TorqueSpeedTable
     # 열: speed (rad/s, 기계), T_max, id, iq, mode ∈ {"MTPA","FW","MTPV","INFEASIBLE"}, P_mech, feasible
     # 영전류에서도 |v| > Vmax인 속도는 feasible=False, T_max·id·iq = NaN, mode = "INFEASIBLE"
 def optimal_current(model, limits, T, speed, objective="current") -> (id, iq, feasible)
-    # 주어진 (토크, 속도)에서 제약을 만족하며 전류 크기를 최소화(나중에 objective="loss"). T ≥ 0 (전동)만 다룬다
+    # 주어진 (토크, 속도)에서 제약을 만족하며 objective를 최소화. "current": 전류 크기(기본), "loss": loss_fn(id, iq) [W]
+    # (losses.loss_objective가 동손 + 철손 함수를 만든다). T ≥ 0 (전동)만 다룬다. "loss"는 시험 제어기가 효율 최고점을 고르는 것과 같다
 ```
 
 - 탐색 범위는 전동 사분면 id ∈ [−Imax, 0], iq ∈ [0, Imax]. (Ld ≤ Lq인 IPMSM에서 id > 0은 토크·전압 모두 불리하다.) 회생(T < 0)은 M4에서 확장한다.
@@ -114,13 +115,15 @@ def winding_resistance(R20, T_c, alpha_cu) -> Rs    # R20·(1 + α·(T − 20)),
 def copper_loss(model, id, iq) -> P_cu              # 1.5·Rs·(id² + iq²)
 def iron_loss(model, id, iq, wm, iron) -> P_fe      # f = p·ωm/2π, B_k = c_k·|ψ|
 def mech_loss(wm, mech) -> P_mech
-def loss_breakdown(model, id, iq, wm, iron, mech) -> LossBreakdown
-    # P_shaft = Te·ωm, P_in = P_shaft + P_cu + P_fe, P_out = P_shaft − P_mech, η = P_out / P_in
-def efficiency_map(model, limits, T_grid, speed_grid, iron, mech) -> EfficiencyMap
+def excess_loss(id, iq, wm, p, excess) -> P_excess      # k_f·f + k_c·Is_rms²·f², Is_rms² = (id² + iq²)/2
+def loss_breakdown(model, id, iq, wm, iron, mech, excess=None) -> LossBreakdown
+    # P_shaft = Te·ωm, P_in = P_shaft + P_cu + P_fe + P_excess, P_out = P_shaft − P_mech, η = P_out / P_in
+def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -> EfficiencyMap
     # 배열 모양 (n_T, n_speed). 동작점은 optimal_current_map(전류 최소)으로 정한다.
 ```
 
-- `iron=None` 또는 `mech=None`이면 해당 손실을 0으로 둔다 (그때 `P_in = 1.5(vd·id + vq·iq)`가 된다 — 테스트로 확인).
+- `ExcessLossParams(k_f [W/Hz], k_c [W/(A²·Hz²)])`는 **경험적 잔여 손실**이다(물리 기구 미규명). 기본값이 없고 호출자가 출처(맞춘 데이터와 검증)와 함께 넘긴다. `excess=None`이면 0이다.
+- `iron=None`, `mech=None`이면 해당 손실을 0으로 둔다 (그때 `P_in = 1.5(vd·id + vq·iq)`가 된다 — 테스트로 확인).
 - 철손은 토크에 반영하지 않는다(등가 철손 저항 모델 생략, 6장 결정 유지). 철손은 입력 전력에만 더해진다.
 - 자속밀도는 ψ 크기에 비례한다고 근사한다. 환산계수 c는 기하(권선 턴수, 치·요크 단면적)에서 오며 P3에서 FEA와 비교한다.
 - `optimal_current_map(model, limits, T_grid, speeds) -> (id, iq, feasible)`는 `operating.py`에 둔다. 속도마다 dq 격자에서 "T 이상을 내는 점 중 전류 최소" 포락선을 구하고, 점마다 전류각을 확대 탐색으로 보정한다. 스칼라 `optimal_current`와 교차 검증한다. 보정이 전압 경계에서 실행 가능점을 못 찾으면 격자점을 그대로 쓰므로 실제 토크는 T_grid보다 약간 클 수 있고, 손실은 실제 토크로 계산한다.

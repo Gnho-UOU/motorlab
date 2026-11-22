@@ -200,6 +200,8 @@ def test_optimal_current_infeasible_above_max_torque(model_rs, limits):
     assert not ok
 
 
-def test_optimal_current_rejects_unknown_objective(model_rs, limits):
-    with pytest.raises(NotImplementedError):
+def test_optimal_current_rejects_bad_objective(model_rs, limits):
+    with pytest.raises(ValueError):
+        optimal_current(model_rs, limits, 50.0, 100.0, objective="efficiency")
+    with pytest.raises(ValueError):          # objective='loss'에는 loss_fn이 필요하다
         optimal_current(model_rs, limits, 50.0, 100.0, objective="loss")

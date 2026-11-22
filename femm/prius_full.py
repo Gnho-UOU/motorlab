@@ -84,10 +84,15 @@ def build_full(g: dict, mesh: dict | None = None, rotor_deg: float = 0.0) -> Sec
             sec.edges += [Edge("seg", P(h[a]), P(h[b])) for a, b in seg_pairs]
             lo, hi = sorted((h["Z1"], h["Z9"]), key=cmath_phase)
             sec.edges.append(Edge("arc", P(lo), P(hi), math.degrees(cmath_phase(hi) - cmath_phase(lo))))
+            if g["rotor"]["hole_HoleM50"].get("air_strip_below_magnet"):
+                sec.edges.append(Edge("seg", P(h["Z6"]), P(h["Z3"])))
         for h, d, nm in ((lower, mag_dir, "magnet_lower"), (upper, -mag_dir, "magnet_upper")):
-            cen = sum(h[k] for k in ("Z8", "Z8c", "Z3", "Z4", "Z5", "Z6")) / 6
+            strip = bool(g["rotor"]["hole_HoleM50"].get("air_strip_below_magnet"))   # True: 자석 = Z8·Z8c·Z3·Z6 사각형, 그 아래(Z6-Z3-Z4-Z5)는 공기
+            cen = sum(h[k] for k in (("Z8", "Z8c", "Z3", "Z6") if strip else ("Z8", "Z8c", "Z3", "Z4", "Z5", "Z6"))) / (4 if strip else 6)
             sec.labels.append(Label(P(cen), "Magnet", m["magnet"], magdir_deg=d + math.degrees(off) + flip,
                                     name=f"{nm}{j}", group=1))
+            if strip:
+                sec.labels.append(Label(P(sum(h[k] for k in ("Z6", "Z3", "Z4", "Z5")) / 4), "Air", m["rotor"], name=f"strip_{nm}{j}", group=1))
             sec.labels.append(Label(P(sum(h[k] for k in ("Z1", "Z2", "Z3", "Z8c", "Z9")) / 5), "Air", m["rotor"],
                                     name=f"pocket{j}", group=1))
         sec.labels.append(Label(P((lower["Z8"] + lower["Z6"] + lower["Z7"] + upper["Z6"]) / 4), "Air", m["rotor"],
@@ -97,18 +102,21 @@ def build_full(g: dict, mesh: dict | None = None, rotor_deg: float = 0.0) -> Sec
     return sec
 
 
-def _driver(i_abc: tuple[float, float, float], fem: str) -> str:
+def _driver(i_abc: tuple[float, float, float], fem: str, probes: list[complex] | None = None) -> str:
+    probe_lines = [f'a, bx, by = mo_getpointvalues({z.real:.9g}, {z.imag:.9g})\nprint(format("BP %.9g %.9g", bx, by))'
+                   for z in (probes or [])]    # xfemm: 반환 순서 A, B1(=Bx), B2(=By), ...
     return "\n".join([
         f'mi_modifycircprop("A", 1, {i_abc[0]:.12g})', f'mi_modifycircprop("B", 1, {i_abc[1]:.12g})',
         f'mi_modifycircprop("C", 1, {i_abc[2]:.12g})', "mi_createmesh()", f'mi_saveas("{fem}")', "mi_analyze(1)", "mi_loadsolution()",
         "mo_groupselectblock(1)", "tq = mo_blockintegral(22)", "mo_clearblock()",
         'i1, v1, fa = mo_getcircuitproperties("A")', 'i2, v2, fb = mo_getcircuitproperties("B")',
         'i3, v3, fc = mo_getcircuitproperties("C")',
-        'print(format("PT %.12g %.12g %.12g %.12g %d %d", tq, fa, fb, fc, mo_numnodes(), mo_numelements()))']) + "\n"
+        'print(format("PT %.12g %.12g %.12g %.12g %d %d", tq, fa, fb, fc, mo_numnodes(), mo_numelements()))'] + probe_lines) + "\n"
 
 
 def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | None = None,
-              femmcli: str | None = None, timeout: int = 3600, br_T: float | None = None) -> dict:
+              femmcli: str | None = None, timeout: int = 3600, br_T: float | None = None,
+              probes: list[complex] | None = None) -> dict:
     """모델을 만들어 저장 -> .fem에 [DoSmartMesh] = 0 삽입 -> 다시 열어 푼다.
 
     xfemm의 Lua에는 smartmesh 명령이 없고(주석 처리됨) 기본값이 켜짐이다. 스마트 메시는 가까운 꼭짓점 간격에 맞춰 요소를 잘게
@@ -125,13 +133,16 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | 
         lines = (d / "m.fem").read_text().splitlines()
         lines.insert(1, "[DoSmartMesh] = 0")
         (d / "m2.fem").write_text("\n".join(lines) + "\n")
-        (d / "run.lua").write_text('open("m2.fem")\n' + _driver(i_abc, "full.fem"))
+        (d / "run.lua").write_text('open("m2.fem")\n' + _driver(i_abc, "full.fem", probes))
         out = subprocess.run([femmcli, "-q", "--lua-script=run.lua"], cwd=d, capture_output=True, text=True, timeout=timeout)
     rows = [l.split() for l in out.stdout.splitlines() if l.startswith("PT ")]
     if len(rows) != 1:
         raise RuntimeError(f"풀리지 않았다 (rotor {rotor_deg}°)\n{out.stdout[-1200:]}\n{out.stderr[-600:]}")
     v = [float(x) for x in rows[0][1:]]
-    return {"torque_Nm": v[0], "lambda_abc_Wb": np.array(v[1:4]), "nodes": v[4], "elements": v[5]}
+    res = {"torque_Nm": v[0], "lambda_abc_Wb": np.array(v[1:4]), "nodes": v[4], "elements": v[5]}
+    if probes:
+        res["B_xy_T"] = np.array([[float(x) for x in l.split()[1:]] for l in out.stdout.splitlines() if l.startswith("BP ")])
+    return res
 
 
 def solve_points(points: list[tuple[float, float, float, float]], mesh: dict | None = None, jobs: int = 8,

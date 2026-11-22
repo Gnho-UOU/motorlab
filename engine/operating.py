@@ -267,19 +267,32 @@ def optimal_current_map(model, limits: Limits, T_grid, speeds):
     return id_o, iq_o, feasible
 
 
-def optimal_current(model, limits: Limits, T, speed, objective: str = "current"):
-    """토크 T, 기계 속도 speed에서 제약을 지키며 전류 크기를 최소화하는 (id, iq, feasible).
+def optimal_current(model, limits: Limits, T, speed, objective: str = "current", loss_fn=None):
+    """토크 T, 기계 속도 speed에서 제약을 지키며 목적함수를 최소화하는 (id, iq, feasible).
 
-    방법: β 격자마다 T를 내는 Is(β)를 이분법으로 구하고, 전압·전류 제약을 만족하는 것 중 Is 최소를 고른 뒤
+    objective="current": 전류 크기 Is 최소 (동손 최소에 가깝다).
+    objective="loss": `loss_fn(id, iq)`(배열을 받아 W를 돌려주는 함수)를 최소화한다. 시험에서 제어기가 id를 바꿔 가며 효율이 가장
+        높은 점을 고르는 것과 같다. 철손이 크면 최적점은 전류 최소점보다 약계자가 깊어(|id| 증가) 전류가 더 커진다.
+        loss_fn은 동작점에 따라 변하는 손실(동손 + 철손)만 넣는다(기계손은 상수). losses.loss_objective가 만든다.
+
+    방법: β 격자마다 T를 내는 Is(β)를 이분법으로 구하고, 전압·전류 제약을 만족하는 것 중 점수 최소를 고른 뒤
     (a) 전압 경계에 걸리면 β를 이분법으로, (b) 내부 최소이면 scipy bounded로 보정한다.
     T ≥ 0(전동)만 다룬다. 실행 불가능하면 (NaN, NaN, False).
-    objective: 지금은 "current"만. "loss"는 P2에서.
     """
-    if objective != "current":
-        raise NotImplementedError("objective='loss'는 P2(losses.py) 이후에 지원한다")
+    if objective not in ("current", "loss"):
+        raise ValueError("objective는 'current' 또는 'loss'")
+    if objective == "loss" and loss_fn is None:
+        raise ValueError("objective='loss'에는 loss_fn이 필요하다 (losses.loss_objective)")
     if T < 0:
         raise ValueError("T < 0(회생)은 M4에서 확장한다")
     I, V, we = limits.Imax, limits.Vmax, model.p * speed
+
+    def score(i_s, b):
+        """목적함수 값 (배열 또는 스칼라). 도달 불가(NaN)는 호출 전에 걸러진다."""
+        if objective == "current":
+            return i_s
+        d_, q_ = _polar(np.nan_to_num(i_s), b)
+        return loss_fn(d_, q_)
 
     beta = np.linspace(0.0, pi / 2, _N_BETA)
     Is = _current_for_torque(model, T, beta, I)
@@ -289,7 +302,8 @@ def optimal_current(model, limits: Limits, T, speed, objective: str = "current")
     if not feas.any():
         return float("nan"), float("nan"), False
 
-    cost = np.where(feas, Is, np.inf)
+    sc = np.where(valid, score(Is, beta), np.inf)
+    cost = np.where(feas, sc, np.inf)
     k = int(np.argmin(cost))
     b_best = float(beta[k])
 
@@ -297,8 +311,12 @@ def optimal_current(model, limits: Limits, T, speed, objective: str = "current")
         i_s = float(_current_for_torque(model, T, b, I))
         return i_s, (not np.isnan(i_s)) and float(_vmag(model, *_polar(i_s, b), we)) <= V
 
-    # (a) 이웃 중 전류는 더 작지만 전압 제약에 막힌 쪽이 있으면 그 경계까지 β를 좁힌다
-    blocked = [j for j in (k - 1, k + 1) if 0 <= j < _N_BETA and valid[j] and not feas[j] and Is[j] < Is[k]]
+    def point_score(b):
+        i_s, ok = point(b)
+        return float(score(i_s, b)) if ok else 1e30     # 실행 불가는 큰 값(inf는 Brent를 깨뜨린다)
+
+    # (a) 이웃 중 점수는 더 작지만 전압 제약에 막힌 쪽이 있으면 그 경계까지 β를 좁힌다
+    blocked = [j for j in (k - 1, k + 1) if 0 <= j < _N_BETA and valid[j] and not feas[j] and sc[j] < sc[k]]
     if blocked:
         b_ok, b_bad = b_best, float(beta[blocked[0]])
         for _ in range(60):
@@ -309,13 +327,12 @@ def optimal_current(model, limits: Limits, T, speed, objective: str = "current")
                 b_bad = mid
         b_best = b_ok
     else:
-        # (b) 전압이 활성이 아닌 내부 최소: 이웃 구간에서 Is(β) 최소화
+        # (b) 전압이 활성이 아닌 내부 최소: 이웃 구간에서 점수 최소화
         lo = float(beta[k - 1]) if k > 0 and valid[k - 1] else b_best
         hi = float(beta[k + 1]) if k < _N_BETA - 1 and valid[k + 1] else b_best
         if hi > lo:
-            res = minimize_scalar(lambda b: point(b)[0], bounds=(lo, hi), method="bounded",
-                                  options={"xatol": 1e-12})
-            if point(res.x)[1] and point(res.x)[0] <= Is[k]:
+            res = minimize_scalar(point_score, bounds=(lo, hi), method="bounded", options={"xatol": 1e-12})
+            if point(res.x)[1] and point_score(res.x) <= sc[k]:
                 b_best = float(res.x)
 
     i_s, _ = point(b_best)

@@ -8,12 +8,15 @@ import numpy as np
 import pytest
 
 from engine.losses import (
+    ExcessLossParams,
     IronParams,
     MechParams,
     copper_loss,
     efficiency_map,
+    excess_loss,
     iron_loss,
     loss_breakdown,
+    loss_objective,
     mech_loss,
     winding_resistance,
 )
@@ -23,6 +26,7 @@ from conftest import IMAX, P
 
 IRON = IronParams(k_h=0.02, k_e=5e-5, beta=2.0, m_tooth=3.0, m_yoke=6.0, c_tooth=20.0, c_yoke=10.0)
 MECH = MechParams(a=0.01, b=2e-8)
+EXCESS = ExcessLossParams(k_f=1.5, k_c=2e-6)      # 테스트 전용 합성 값
 
 
 def test_winding_resistance():
@@ -127,3 +131,82 @@ def test_efficiency_map_speed(model_rs, limits):
     t0 = time.perf_counter()
     efficiency_map(model_rs, limits, T, w, IRON, MECH)
     assert time.perf_counter() - t0 < 2.0  # 기획서 G2: 효율맵 1장 2초 이내
+
+
+# --- objective="loss": 효율이 가장 높은 동작점 (시험 제어기가 id를 바꿔 효율 최고점을 고르는 것과 같다) -----------------------
+# (T [N·m], ωm [rad/s]). 모두 그 속도의 최대 토크(300: 146, 600: 121, 900: 72, 1200: 32 N·m)의 약 50~85% 안쪽이라 실행 가능하다.
+OPERATING_POINTS = [(60.0, 300.0), (100.0, 600.0), (50.0, 900.0), (22.0, 1200.0)]
+
+
+@pytest.mark.parametrize("T, wm", OPERATING_POINTS)
+def test_loss_objective_with_copper_only_equals_min_current(model_rs, limits, T, wm):
+    """동손만 넣으면 최소 손실점 = 최소 전류점이다 (동손 = 1.5·Rs·Is²가 Is에 단조)."""
+    cu_only = loss_objective(model_rs, wm, None)
+    d1, q1, ok1 = optimal_current(model_rs, limits, T, wm)
+    d2, q2, ok2 = optimal_current(model_rs, limits, T, wm, objective="loss", loss_fn=cu_only)
+    assert ok1 and ok2
+    assert np.hypot(d2, q2) == pytest.approx(np.hypot(d1, q1), rel=1e-6)
+
+
+@pytest.mark.parametrize("T, wm", OPERATING_POINTS)
+def test_loss_objective_never_loses_to_min_current_and_deepens_field_weakening(model_rs, limits, T, wm):
+    """철손이 있으면 최소 손실점의 손실이 최소 전류점의 손실 이하이고, 약계자가 같거나 더 깊다(|ψ|가 같거나 작다)."""
+    fn = loss_objective(model_rs, wm, IRON)
+    d1, q1, _ = optimal_current(model_rs, limits, T, wm)
+    d2, q2, ok = optimal_current(model_rs, limits, T, wm, objective="loss", loss_fn=fn)
+    assert ok
+    assert float(fn(d2, q2)) <= float(fn(d1, q1)) * (1 + 1e-9)
+    assert np.hypot(d2, q2) >= np.hypot(d1, q1) * (1 - 1e-9)           # 전류는 같거나 더 크다
+    assert float(model_rs.torque(d2, q2)) == pytest.approx(T, rel=1e-6)  # 토크는 정확히 T
+    psi = lambda d, q: float(np.hypot(*model_rs.flux(d, q)))
+    assert psi(d2, q2) <= psi(d1, q1) * (1 + 1e-9)
+
+
+def test_loss_objective_matches_brute_force_search(model_rs, limits):
+    """독립 검증: (id, iq) 격자 전수 탐색에서 토크 T 이상을 내는 점 중 손실이 최소인 값과 비교한다."""
+    T, wm = 50.0, 900.0                      # 900 rad/s의 최대 토크는 72 N·m (실행 가능한 점)
+    fn = loss_objective(model_rs, wm, IRON)
+    d, q, ok = optimal_current(model_rs, limits, T, wm, objective="loss", loss_fn=fn)
+    assert ok
+    n = 701
+    gd, gq = np.meshgrid(np.linspace(-IMAX, 0.0, n), np.linspace(0.0, IMAX, n), indexing="ij")
+    vd, vq = model_rs.voltage(gd, gq, P * wm)
+    good = (np.hypot(gd, gq) <= IMAX) & (np.hypot(vd, vq) <= limits.Vmax) & (model_rs.torque(gd, gq) >= T)
+    assert float(fn(d, q)) <= float(fn(gd, gq)[good].min()) * (1 + 1e-9)             # 엔진이 격자 최소보다 나쁘면 안 된다
+    near = good & (model_rs.torque(gd, gq) <= T * 1.01)                                # T에 가까운 격자점의 최소와도 가깝다
+    assert float(fn(d, q)) >= float(fn(gd, gq)[near].min()) * 0.97
+
+
+# --- 경험적 잔여 손실 (ExcessLossParams): P = k_f·f + k_c·Is_rms²·f² ---------------------------------------------------------------
+def test_excess_loss_formula_and_scaling():
+    id_, iq, wm = -80.0, 120.0, 400.0
+    f = P * wm / (2 * np.pi)
+    is_rms2 = (id_**2 + iq**2) / 2
+    assert excess_loss(id_, iq, wm, P, EXCESS) == pytest.approx(EXCESS.k_f * f + EXCESS.k_c * is_rms2 * f**2, rel=1e-12)
+    assert excess_loss(id_, iq, 0.0, P, EXCESS) == 0.0
+    only_f, only_c = ExcessLossParams(1.5, 0.0), ExcessLossParams(0.0, 2e-6)
+    assert excess_loss(id_, iq, 2 * wm, P, only_f) == pytest.approx(2 * excess_loss(id_, iq, wm, P, only_f))      # f에 비례
+    assert excess_loss(id_, iq, 2 * wm, P, only_c) == pytest.approx(4 * excess_loss(id_, iq, wm, P, only_c))      # f²에 비례
+    assert excess_loss(2 * id_, 2 * iq, wm, P, only_c) == pytest.approx(4 * excess_loss(id_, iq, wm, P, only_c))  # I²에 비례
+    assert excess_loss(id_, iq, wm, P, ExcessLossParams(0.0, 0.0)) == 0.0
+
+
+def test_loss_budget_closes_with_excess_and_lowers_efficiency(model_rs):
+    id_, iq, wm = -120.0, 210.0, 600.0
+    base = loss_breakdown(model_rs, id_, iq, wm, IRON, MECH)
+    lb = loss_breakdown(model_rs, id_, iq, wm, IRON, MECH, EXCESS)
+    assert lb.P_excess == pytest.approx(excess_loss(id_, iq, wm, P, EXCESS))
+    assert lb.P_in - lb.P_out == pytest.approx(lb.P_cu + lb.P_fe + lb.P_mech + lb.P_excess, rel=1e-12)
+    assert lb.eta < base.eta and base.P_excess == 0.0
+    assert lb.P_out == pytest.approx(base.P_out)          # 잔여 손실은 입력 전력에만 더한다(샤프트 출력은 그대로)
+
+
+def test_efficiency_map_with_excess(model_rs, limits):
+    a = efficiency_map(model_rs, limits, T_GRID, SPEEDS, IRON, MECH)
+    b = efficiency_map(model_rs, limits, T_GRID, SPEEDS, IRON, MECH, EXCESS)
+    f = a.feasible
+    np.testing.assert_array_equal(a.feasible, b.feasible)
+    np.testing.assert_allclose(b.id[f], a.id[f])                       # 동작점(전류 최소)은 손실과 무관하다
+    np.testing.assert_allclose((b.P_in - b.P_out)[f], (b.P_cu + b.P_fe + b.P_mech + b.P_excess)[f], rtol=1e-12)
+    assert np.all(b.eta[f] < a.eta[f])
+    assert np.all(np.isnan(b.P_excess[~f]))

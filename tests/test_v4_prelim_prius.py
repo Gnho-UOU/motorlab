@@ -148,3 +148,43 @@ def test_calibrated_br_map_required_current_matches_measurement_at_low_speed():
         assert ok
         ratios.append(math.hypot(d, q) / (col["Iac_rms_A"][k] * math.sqrt(2)))
     assert all(0.93 <= r <= 1.07 for r in ratios), np.round(ratios, 2)
+
+
+# --- 모터 효율 vs ORNL Table B-1 (data/fea/prius2004_efficiency_validation.csv, notebooks/03_prius_efficiency_validation.py) ---
+EFF = ROOT / "data" / "fea" / "prius2004_efficiency_validation.csv"
+
+
+def _load_eff():
+    A = np.array([[float(x) for x in l.split(",")] for l in EFF.read_text().splitlines()[1:]])
+    sp, T = A[:, 0], A[:, 1]
+    return sp, T, (A[:, 6] - A[:, 5]) * 100          # Δη(엔진 - 실측) [%p]
+
+
+def test_efficiency_overall_bias_is_a_few_points_high():
+    """엔진 효율은 실측보다 체계적으로 높다(전체 평균 +3.0%p). 기록용: 이 범위를 벗어나면 모델이 바뀐 것이다."""
+    sp, T, dE = _load_eff()
+    assert len(dE) == 382
+    assert 2.0 < dE.mean() < 4.0 and np.sqrt((dE ** 2).mean()) < 5.0
+
+
+def test_efficiency_matches_where_copper_loss_dominates():
+    """동손이 지배적인 고토크(200 N·m 이상 90행)에서는 평균 +0.66%p, 범위 −3.25~+2.72%p이고 90%가 ±2.5%p 안이다
+    (단, R20을 같은 표의 저속 행에서 역산했으므로 독립 검증은 아니다)."""
+    sp, T, dE = _load_eff()
+    hi = T >= 200
+    assert abs(dE[hi].mean()) < 1.5
+    assert (np.abs(dE[hi]) <= 2.5).mean() > 0.85
+    assert np.abs(dE[hi]).max() < 4.0
+
+
+def test_efficiency_error_grows_with_speed_documents_g1_miss():
+    """G1 미달의 기록: 주요 영역(1000~4000 rpm, 30~200 N·m) 평균 +3%p 안팎, 4000 rpm 이상 +8%p 안팎 (docs/validation_report.md).
+
+    이 테스트는 미달을 숨기지 않고 고정하는 회귀 표시다. 철손·고속 자속 특성을 개선하면 이 범위가 줄어들어야 하고,
+    그때 이 테스트를 갱신한다.
+    """
+    sp, T, dE = _load_eff()
+    core = (sp >= 1000) & (sp <= 4000) & (T >= 30) & (T <= 200)
+    assert 2.0 < dE[core].mean() < 4.5
+    assert (np.abs(dE[core]) <= 3.0).mean() < 0.7          # 통과 기준(3%p)을 70% 넘게 만족하지 못한다
+    assert dE[sp >= 4000].mean() > 6.0
