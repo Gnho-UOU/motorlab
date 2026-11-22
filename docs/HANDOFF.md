@@ -27,9 +27,15 @@
 - 환경: 이 Mac에 Python 3.12가 없어 uv 0.13.9를 `~/.local/bin`에 설치(셸 설정 변경 없음)하고 `.venv`를 3.12로 만듦. 실행은 `.venv/bin/python -m pytest`.
 
 ## 아직 열린 질문 (사용자에게 확인)
-1. FEMM을 돌릴 Windows PC가 본인 노트북인지 학교 PC인지 → 자동화 방식 결정
+1. FEMM을 돌릴 Windows PC가 본인 노트북인지 학교 PC인지 → 자동화 방식 결정. **2026-11-22 현재 사용자가 모름.** FEMM은 Windows 전용. **해결 방향 확정:** Mac에서 xfemm `femmcli`로 돌린다(빌드·해석해 시험 통과, 자세한 내용은 `docs/FEA_OPTIONS.md` 3-1절). 빌드는 `femm/build_xfemm_macos.sh`, 검증은 `femm/validation/run_checks.py`. Windows PC는 진짜 FEMM과의 교차 검증용으로만 필요하다.
 2. 두 번째 벤치마크(닛산 리프 등 최근 BEV 모터)의 공개 데이터 여부 조사 여부
-3. 수치 목표(기획서 3·6장)는 초안. ORNL 보고서의 측정 조건을 읽고 확정
+3. 수치 목표(기획서 3·6장)는 초안. ORNL 보고서의 측정 조건을 읽고 확정 → **측정 조건은 읽었음**(`data/benchmarks/prius2004_ornl.md` 3절): 효율맵은 DC 약 500 V, 냉각수 55 °C, 기어 손실 제외 모터 단독. 모터 효율은 인버터 제외. 수치 목표 확정은 V3 첫 결과를 본 뒤.
+
+## 2026-11-22 ORNL 자료 확보 결과
+- 보고서 3편 확보(TM-137, TM-185, TM-423). **형상 치수는 보고서에 없음.** 형상 후보는 제3자(pyleecan, Kaczmarek 2013)뿐이고 철심 재질이 서로 다름(M400-50A 대 M19). 상저항·철손 데이터도 없음. 자세한 내용은 `data/benchmarks/prius2004_ornl.md`.
+- 실측 표 4개를 CSV로 옮김(`data/benchmarks/prius2004_*.csv`): 성능 맵 428점, 역기전력, 로터 손실, 잠금 토크. 원문 PDF는 `data/benchmarks/raw/`(git 제외).
+- 상수 모델로 예비 점검: 저전류 토크는 실측과 맞고 250 A에서 약 2배 크다(포화). 그래서 V3(FEA 자속 맵)가 필요하다.
+- V2는 주 교재 대신 돌극 동기기 전력-부하각식으로 대체(`tests/test_v2_textbook.py`).
 
 ## 첫 작업 (P0 마무리 + P1 시작)
 1. 저장소 초기화: `git init`, Python 프로젝트 구성(pyproject.toml, engine/ tests/), .gitignore, README.
