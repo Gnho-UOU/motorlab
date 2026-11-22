@@ -1,0 +1,20 @@
+[project]
+name = "motorlab"
+version = "0.1.0"
+description = "EV 구동모터(IPMSM) 설계·효율·전비 통합 해석 엔진"
+requires-python = ">=3.12"
+# 엔진 런타임 의존성은 numpy, scipy로 제한한다 (CLAUDE.md).
+dependencies = ["numpy", "scipy"]
+
+[project.optional-dependencies]
+dev = ["pytest", "matplotlib", "jupyter", "nbconvert", "ipykernel"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["engine"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

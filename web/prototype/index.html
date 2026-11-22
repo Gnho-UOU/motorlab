@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Motor Lab · 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eeedea;--ink:#23201d;--mute:#7a736b;--cu:#b86a35;--cu2:#d9915a;--glass:rgba(255,255,255,.74);--line:rgba(35,32,29,.09);--ok:#2f8f5b;--warn:#c98a1a;--bad:#c4413a}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans KR',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+.glass{background:var(--glass);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border:1px solid var(--line);box-shadow:0 10px 40px rgba(60,40,20,.10),0 1px 0 rgba(255,255,255,.8) inset;border-radius:16px}
+#brand{position:fixed;left:22px;top:20px;display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.01em;font-size:15px;z-index:5}
+#brand i{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#f1b98c,#a85a28);box-shadow:0 0 0 4px rgba(184,106,53,.15)}
+#brand span{color:var(--mute);font-weight:400}
+#back{position:fixed;left:22px;top:56px;z-index:5;border:0;cursor:pointer;font:500 13px 'IBM Plex Sans KR';padding:8px 14px;color:var(--ink);opacity:0;pointer-events:none;transform:translateY(-4px);transition:.35s}
+#back.on{opacity:1;pointer-events:auto;transform:none}
+#hero{position:fixed;left:22px;bottom:92px;z-index:4;max-width:340px;transition:opacity .5s,transform .5s}
+#hero h1{font-size:30px;font-weight:300;letter-spacing:-.02em;line-height:1.2}
+#hero h1 b{font-weight:600}
+#hero p{margin-top:8px;font-size:13px;color:var(--mute);line-height:1.6}
+#hero.off{opacity:0;transform:translateY(8px);pointer-events:none}
+#chips{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:5;display:flex;gap:4px;padding:5px;max-width:calc(100vw - 24px);overflow-x:auto;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+#chips button{border:0;background:transparent;font:500 13px 'IBM Plex Sans KR';color:var(--mute);padding:9px 15px;border-radius:12px;cursor:pointer;white-space:nowrap;transition:.25s}
+#chips button:hover{color:var(--ink);background:rgba(184,106,53,.08)}
+#chips button.on{background:var(--cu);color:#fff;box-shadow:0 4px 14px rgba(184,106,53,.35)}
+#card{position:fixed;right:22px;top:20px;width:min(340px,calc(100vw - 44px));z-index:6;padding:20px 20px 18px;opacity:0;pointer-events:none;transform:translateX(12px);transition:.4s}
+#card.on{opacity:1;pointer-events:auto;transform:none}
+#card h2{font-size:18px;font-weight:600;letter-spacing:-.01em}
+#card .sub{font-size:12px;color:var(--cu);margin-top:2px;font-weight:500}
+#card p{font-size:13px;line-height:1.65;color:#4a443e;margin-top:10px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:7px 12px;margin-top:14px;font-size:13px}
+.kv span{color:var(--mute)}.kv b{font-weight:500;font-variant-numeric:tabular-nums;text-align:right}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;cursor:pointer;font:500 13px 'IBM Plex Sans KR';padding:10px 16px;border-radius:12px;background:var(--cu);color:#fff;box-shadow:0 4px 14px rgba(184,106,53,.3);transition:.25s}
+.btn:hover{filter:brightness(1.07)}
+.btn.ghost{background:rgba(35,32,29,.06);color:var(--ink);box-shadow:none}
+.btn.ghost:hover{background:rgba(35,32,29,.1)}
+.row{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.seg{display:flex;background:rgba(35,32,29,.06);border-radius:12px;padding:3px;margin-top:6px}
+.seg button{flex:1;border:0;background:transparent;font:500 13px 'IBM Plex Sans KR';padding:8px 6px;border-radius:9px;cursor:pointer;color:var(--mute);transition:.2s}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.lab{font-size:12px;color:var(--mute);margin-top:14px}
+#status{margin-top:14px;padding:11px 13px;border-radius:12px;font-size:13px;line-height:1.55;border:1px solid transparent}
+#status.ok{background:rgba(47,143,91,.1);color:#1f6b42;border-color:rgba(47,143,91,.2)}
+#status.warn{background:rgba(201,138,26,.12);color:#8a5d0b;border-color:rgba(201,138,26,.25)}
+#status.bad{background:rgba(196,65,58,.1);color:#9b2b25;border-color:rgba(196,65,58,.25)}
+#status.idle{background:rgba(35,32,29,.05);color:#5a534b}
+#run{position:fixed;right:22px;bottom:20px;z-index:5;padding:11px 18px}
+#tip{position:fixed;pointer-events:none;z-index:9;padding:6px 10px;border-radius:9px;background:rgba(35,32,29,.88);color:#fff;font-size:12px;opacity:0;transition:opacity .15s;transform:translate(14px,14px);white-space:nowrap}
+.pin{position:fixed;left:0;top:0;z-index:3;display:flex;align-items:center;gap:8px;cursor:pointer;transition:opacity .4s;will-change:transform;font-size:12px;font-weight:500;color:var(--ink)}
+.pin i{width:12px;height:12px;border-radius:50%;background:var(--cu);border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.25);position:relative;flex:none}
+.pin i::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:1.5px solid var(--cu);opacity:.0;animation:pp 2.4s ease-out infinite}
+.pin em{font-style:normal;padding:4px 9px;border-radius:8px;background:rgba(255,255,255,.82);backdrop-filter:blur(8px);border:1px solid var(--line);white-space:nowrap}
+@keyframes pp{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.6);opacity:0}}
+#load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:20;font-size:13px;color:var(--mute);transition:opacity .6s}
+#load.off{opacity:0;pointer-events:none}
+@media (max-width:760px){
+ #hero{bottom:84px;max-width:70vw}#hero h1{font-size:24px}
+ #card{top:auto;bottom:76px;right:12px;left:12px;width:auto;max-height:52vh;overflow:auto;transform:translateY(12px)}
+ #run{bottom:auto;top:18px;right:14px;padding:8px 14px}
+ #brand{left:16px}#back{left:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01s!important;animation:none!important}}
+</style>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<canvas id="c" tabindex="0" aria-label="3D 모터 모델"></canvas>
+<div id="load">모터를 불러오는 중…</div>
+<div id="brand"><i></i>Motor Lab <span>/ 3D 결선 스튜디오</span></div>
+<button id="back" class="glass">← 전체 보기</button>
+<div id="hero"><h1>6단자 <b>3상 교류전동기</b></h1><p>부품을 눌러 확대하고, 단자박스를 열어 결선을 직접 바꿔 보세요. 드래그로 회전, 휠 또는 핀치로 확대합니다.</p></div>
+<div id="card" class="glass"></div>
+<div id="tip"></div>
+<nav id="chips" class="glass"></nav>
+<button id="run" class="btn glass" style="color:var(--ink)">▶ 구동</button>
+<div id="pins"></div>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {Reflector} from 'three/addons/objects/Reflector.js';
+
+const $=s=>document.querySelector(s);
+const canvas=$('#c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,powerPreference:'high-performance'});
+const DPR=Math.min(devicePixelRatio||1,2);
+renderer.setPixelRatio(DPR);
+renderer.setSize(innerWidth,innerHeight,false);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.02;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000,0);
+
+const scene=new THREE.Scene();
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(),0.04).texture;
+scene.environmentIntensity=0.85;
+
+const camera=new THREE.PerspectiveCamera(32,innerWidth/innerHeight,0.1,80);
+camera.position.set(6.4,3.6,7.2);
+const controls=new OrbitControls(camera,canvas);
+controls.target.set(0.1,1.35,0);
+controls.enableDamping=true;controls.dampingFactor=0.07;
+controls.maxPolarAngle=Math.PI*0.495;
+controls.minDistance=1.4;controls.maxDistance=16;
+controls.enablePan=false;
+controls.update();
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xffffff,0xd9d4cc,0.55));
+const key=new THREE.DirectionalLight(0xfff6ec,2.1);
+key.position.set(4.5,9,5.5);
+key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+const sc=key.shadow.camera;sc.left=-6;sc.right=6;sc.top=6;sc.bottom=-6;sc.near=1;sc.far=26;
+key.shadow.radius=6;key.shadow.bias=-0.0004;key.shadow.normalBias=0.02;
+scene.add(key);
+const rim=new THREE.DirectionalLight(0xffe2c8,0.9);rim.position.set(-6,4,-5);scene.add(rim);
+const fill=new THREE.DirectionalLight(0xdfe8ff,0.5);fill.position.set(-5,3,6);scene.add(fill);
+
+// ---------- floor: mirror + fading white veil + shadow ----------
+const FLOOR_R=11;
+const mirror=new Reflector(new THREE.CircleGeometry(FLOOR_R,64),{
+  textureWidth:Math.round(innerWidth*DPR*0.6),textureHeight:Math.round(innerHeight*DPR*0.6),
+  color:0xffffff,clipBias:0.003});
+mirror.rotation.x=-Math.PI/2;mirror.position.y=0;scene.add(mirror);
+
+function veilTexture(){
+  const s=1024,c=document.createElement('canvas');c.width=c.height=s;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(s/2,s/2,0,s/2,s/2,s/2);
+  gr.addColorStop(0,'rgba(253,253,252,0.80)');
+  gr.addColorStop(0.28,'rgba(251,250,249,0.86)');
+  gr.addColorStop(0.62,'rgba(244,243,241,0.96)');
+  gr.addColorStop(0.86,'rgba(238,237,234,1)');
+  gr.addColorStop(1,'rgba(238,237,234,1)');
+  g.fillStyle=gr;g.fillRect(0,0,s,s);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const veil=new THREE.Mesh(new THREE.CircleGeometry(FLOOR_R,64),
+  new THREE.MeshBasicMaterial({map:veilTexture(),transparent:true,depthWrite:false,toneMapped:false}));
+veil.rotation.x=-Math.PI/2;veil.position.y=0.002;veil.renderOrder=1;scene.add(veil);
+
+// soft contact shadow blob (ambient occlusion feel)
+function blobTexture(){
+  const c=document.createElement('canvas');c.width=512;c.height=256;const g=c.getContext('2d');
+  const gr=g.createRadialGradient(256,128,10,256,128,250);
+  gr.addColorStop(0,'rgba(20,14,10,0.55)');gr.addColorStop(0.45,'rgba(20,14,10,0.22)');gr.addColorStop(1,'rgba(20,14,10,0)');
+  g.save();g.translate(256,128);g.scale(1,0.5);g.translate(-256,-128);g.fillStyle=gr;g.fillRect(0,-128,512,512);g.restore();
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;
+}
+const blob=new THREE.Mesh(new THREE.PlaneGeometry(7.4,4.4),new THREE.MeshBasicMaterial({map:blobTexture(),transparent:true,depthWrite:false,toneMapped:false}));
+blob.rotation.x=-Math.PI/2;blob.position.set(0.1,0.004,0);blob.renderOrder=2;scene.add(blob);
+const shadowPlane=new THREE.Mesh(new THREE.PlaneGeometry(24,24),new THREE.ShadowMaterial({opacity:0.22}));
+shadowPlane.rotation.x=-Math.PI/2;shadowPlane.position.y=0.006;shadowPlane.receiveShadow=true;shadowPlane.renderOrder=3;scene.add(shadowPlane);
+
+// ---------- material helpers ----------
+const M={
+  paint:()=>new THREE.MeshPhysicalMaterial({color:0x363a41,roughness:0.42,metalness:0.35,clearcoat:0.55,clearcoatRoughness:0.32}),
+  paintLight:()=>new THREE.MeshPhysicalMaterial({color:0x474c54,roughness:0.4,metalness:0.4,clearcoat:0.5,clearcoatRoughness:0.3}),
+  steel:()=>new THREE.MeshPhysicalMaterial({color:0xcfd2d6,roughness:0.22,metalness:1}),
+  darksteel:()=>new THREE.MeshPhysicalMaterial({color:0x7d8289,roughness:0.38,metalness:1}),
+  copper:()=>new THREE.MeshPhysicalMaterial({color:0xc2733a,roughness:0.26,metalness:1,clearcoat:0.3}),
+  brass:()=>new THREE.MeshPhysicalMaterial({color:0xcfa25a,roughness:0.28,metalness:1}),
+  black:()=>new THREE.MeshStandardMaterial({color:0x17181a,roughness:0.55,metalness:0.2}),
+  bakelite:()=>new THREE.MeshStandardMaterial({color:0x2a2018,roughness:0.5,metalness:0.05}),
+};
+const pickables=[];             // meshes that react to hover/click
+const partMeshes={};            // part id -> [mesh]
+function reg(mesh,part,{pick=true}={}){
+  mesh.userData.part=part;
+  mesh.traverse?.(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;o.userData.part=part;
+    if(pick){(partMeshes[part]??=[]).push(o);pickables.push(o);}}});
+  return mesh;
+}
+function mesh(geo,mat,pos=[0,0,0],rot=[0,0,0]){
+  const m=new THREE.Mesh(geo,mat);m.position.set(...pos);m.rotation.set(...rot);m.castShadow=m.receiveShadow=true;return m;
+}
+const AX=Math.PI/2; // rotate cylinder (Y axis) to X axis -> rotation.z = AX
+const motor=new THREE.Group();scene.add(motor);
+const H=1.3;           // axis height
+const R=1.0;           // frame radius
+
+// ================= MOTOR BODY (axis = X) =================
+const matFrame=M.paint();
+// core cylinder
+const core=mesh(new THREE.CylinderGeometry(R,R,2.4,96,1),matFrame,[0,H,0],[0,0,AX]);
+reg(core,'frame');motor.add(core);
+// end flanges
+for(const sx of [-1,1]){
+  const fl=mesh(new THREE.CylinderGeometry(R+0.06,R+0.06,0.1,96),matFrame,[sx*1.2,H,0],[0,0,AX]);reg(fl,'frame');motor.add(fl);
+}
+// longitudinal cooling fins (instanced)
+{
+  const N=72,geo=new THREE.BoxGeometry(2.3,0.17,0.034);
+  const inst=new THREE.InstancedMesh(geo,matFrame,N);
+  const d=new THREE.Object3D();let k=0;
+  for(let i=0;i<N;i++){
+    const phi=i/N*Math.PI*2-Math.PI;                       // 0 = top (+y), PI/2 = +z (front)
+    const nphi=Math.atan2(Math.sin(phi),Math.cos(phi));
+    if(Math.abs(nphi)<0.5) continue;                       // under terminal box
+    if(Math.abs(nphi-Math.PI/2)<0.5) continue;             // nameplate band (front)
+    if(Math.abs(nphi+Math.PI/2)<0.3) continue;             // cable side (back)
+    const rr=R+0.065;
+    d.position.set(0,H+rr*Math.cos(phi),rr*Math.sin(phi));
+    d.rotation.set(phi,0,0);d.updateMatrix();inst.setMatrixAt(k++,d.matrix);
+  }
+  inst.count=k;inst.castShadow=inst.receiveShadow=true;reg(inst,'frame');motor.add(inst);
+}
+// foot blocks + base skid
+{
+  const skid=mesh(new RoundedBoxGeometry(3.9,0.12,2.5,3,0.03),M.darksteel(),[0,0.06,0]);reg(skid,'frame');motor.add(skid);
+  for(const sx of [-0.78,0.78]){
+    const b=mesh(new RoundedBoxGeometry(0.62,0.34,2.34,3,0.04),matFrame,[sx,0.29,0]);reg(b,'frame');motor.add(b);
+    for(const sz of [-1,1]){
+      const bolt=mesh(new THREE.CylinderGeometry(0.075,0.075,0.07,6),M.black(),[sx,0.49,sz*1.04]);reg(bolt,'frame');motor.add(bolt);
+    }
+  }
+  // skid bolts
+  for(const sx of [-1.7,1.7])for(const sz of [-1.05,1.05]){
+    const bolt=mesh(new THREE.CylinderGeometry(0.07,0.07,0.05,6),M.steel(),[sx,0.145,sz]);reg(bolt,'frame');motor.add(bolt);
+  }
+  // lifting eye on top-left
+  const eye=mesh(new THREE.TorusGeometry(0.1,0.03,12,24),M.steel(),[-0.75,H+R+0.1,0],[0,Math.PI/2,0]);reg(eye,'frame');motor.add(eye);
+  const eyeBase=mesh(new THREE.CylinderGeometry(0.1,0.13,0.1,20),matFrame,[-0.75,H+R+0.02,0]);reg(eyeBase,'frame');motor.add(eyeBase);
+}
+
+// ---- end shields via lathe ----
+function lathe(pts,mat,x,dir){
+  const g=new THREE.LatheGeometry(pts.slice().reverse().map(p=>new THREE.Vector2(p[0],p[1])),72);
+  const m=mesh(g,mat,[x,H,0],[0,0,dir*AX]);return m;   // dir=-1: +Y→+X ; dir=+1: +Y→-X
+}
+const matShield=M.paintLight();
+const shaftGroup=new THREE.Group();shaftGroup.position.set(0,H,0);motor.add(shaftGroup);
+// Drive end shield (+X)
+{
+  const de=lathe([[0.0,0.32],[0.36,0.32],[0.36,0.22],[0.55,0.17],[0.88,0.07],[1.04,0.05],[1.06,0.0],[1.06,-0.1],[0.0,-0.1]],matShield,1.25,-1);
+  reg(de,'shaft');motor.add(de);
+  for(let i=0;i<8;i++){ // rim bolts
+    const a=i/8*Math.PI*2,r=0.92;
+    const b=mesh(new THREE.CylinderGeometry(0.05,0.05,0.04,6),M.steel(),[1.25+0.065,H+Math.cos(a)*r,Math.sin(a)*r],[0,0,AX]);reg(b,'shaft');motor.add(b);
+  }
+  for(let i=0;i<6;i++){ // bearing cap bolts
+    const a=i/6*Math.PI*2+0.3,r=0.27;
+    const b=mesh(new THREE.CylinderGeometry(0.03,0.03,0.04,6),M.steel(),[1.25+0.28,H+Math.cos(a)*r,Math.sin(a)*r],[0,0,AX]);reg(b,'shaft');motor.add(b);
+  }
+}
+// Shaft (rotates)
+{
+  const sh=mesh(new THREE.CylinderGeometry(0.17,0.17,1.0,48),M.steel(),[1.95,0,0],[0,0,AX]);reg(sh,'shaft');shaftGroup.add(sh);
+  const step=mesh(new THREE.CylinderGeometry(0.2,0.2,0.1,48),M.steel(),[1.55,0,0],[0,0,AX]);reg(step,'shaft');shaftGroup.add(step);
+  const tip=mesh(new THREE.CylinderGeometry(0.14,0.17,0.04,48),M.steel(),[2.47,0,0],[0,0,AX]);reg(tip,'shaft');shaftGroup.add(tip);
+  const key=mesh(new RoundedBoxGeometry(0.55,0.05,0.07,2,0.01),M.darksteel(),[2.0,0.175,0]);reg(key,'shaft');shaftGroup.add(key);
+  const stripe=mesh(new THREE.BoxGeometry(0.16,0.012,0.09),M.copper(),[2.3,0.172,0]);reg(stripe,'shaft');shaftGroup.add(stripe);
+  const stripe2=mesh(new THREE.BoxGeometry(0.16,0.09,0.012),M.copper(),[2.3,0,0.172]);reg(stripe2,'shaft');shaftGroup.add(stripe2);
+  const hole=mesh(new THREE.CylinderGeometry(0.04,0.04,0.02,16),M.black(),[2.495,0,0],[0,0,AX]);reg(hole,'shaft');shaftGroup.add(hole);
+}
+// Non-drive end shield + fan cover (-X)
+{
+  const nde=lathe([[0.0,0.2],[0.5,0.2],[0.88,0.07],[1.04,0.05],[1.06,0.0],[1.06,-0.1],[0.0,-0.1]],matShield,-1.25,1);
+  reg(nde,'fan');motor.add(nde);
+  const matCover=M.paint();
+  const cover=lathe([[0.0,0.68],[0.55,0.68],[0.86,0.64],[0.97,0.54],[1.0,0.44],[1.0,0.0],[0.9,0.0],[0.9,0.0],[0.0,0.0]],matCover,-1.38,1);
+  reg(cover,'fan');motor.add(cover);
+  // radial vent slots on the cover end-face
+  const slotGeo=new THREE.BoxGeometry(0.03,0.3,0.07),slotMat=M.black();
+  const ring=(n,r0,len,rot)=>{
+    for(let i=0;i<n;i++){
+      const a=i/n*Math.PI*2+rot;
+      const s=mesh(new THREE.BoxGeometry(0.03,len,0.07),slotMat,[-1.38-0.69,H+Math.cos(a)*r0,Math.sin(a)*r0]);
+      s.rotation.x=a;s.castShadow=false;reg(s,'fan');motor.add(s);
+    }
+  };
+  ring(32,0.7,0.26,0);ring(22,0.38,0.22,0.1);
+  // cover hub with copper cap
+  const cap=mesh(new THREE.CylinderGeometry(0.13,0.13,0.05,40),M.copper(),[-1.38-0.7,H,0],[0,0,AX]);reg(cap,'fan');motor.add(cap);
+  // cover clamp bolts
+  for(let i=0;i<4;i++){
+    const a=i/4*Math.PI*2+Math.PI/4;
+    const b=mesh(new THREE.CylinderGeometry(0.045,0.045,0.05,6),M.steel(),[-1.38-0.52,H+Math.cos(a)*0.99,Math.sin(a)*0.99],[0,0,AX]);b.rotation.x=a;reg(b,'fan');motor.add(b);
+  }
+}
+// ---- nameplate ----
+function plateTexture(){
+  const W=1024,Hh=640,c=document.createElement('canvas');c.width=W;c.height=Hh;const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,W,Hh);gr.addColorStop(0,'#e0a477');gr.addColorStop(0.45,'#c47a45');gr.addColorStop(1,'#a45f31');
+  g.fillStyle=gr;g.fillRect(0,0,W,Hh);
+  for(let i=0;i<900;i++){g.fillStyle=`rgba(${Math.random()<.5?255:60},${Math.random()<.5?220:90},${Math.random()<.5?190:40},${Math.random()*0.05})`;g.fillRect(0,Math.random()*Hh,W,Math.random()*2);}
+  g.strokeStyle='rgba(60,28,8,.55)';g.lineWidth=5;g.strokeRect(22,22,W-44,Hh-44);
+  g.fillStyle='#2b1507';g.textBaseline='alphabetic';
+  g.font='600 40px "IBM Plex Sans KR",sans-serif';g.fillText('THREE-PHASE AC MOTOR',60,96);
+  g.font='400 26px "IBM Plex Sans KR",sans-serif';g.fillText('SAMPLE DATA · FOR ILLUSTRATION',60,134);
+  g.fillRect(60,152,W-120,3);
+  const rows=[['Output','75 kW'],['Voltage','400 Δ / 690 Y  V'],['Current','132 / 76  A'],['Frequency','50 Hz'],['Speed','1485 min⁻¹  (4P)'],['cos φ','0.86'],['Protection / Cl.','IP55 / Ins. F']];
+  g.font='400 30px "IBM Plex Sans KR",sans-serif';
+  rows.forEach((r,i)=>{const y=206+i*56;g.fillText(r[0],64,y);g.font='600 34px "IBM Plex Sans KR",sans-serif';g.fillText(r[1],370,y);g.font='400 30px "IBM Plex Sans KR",sans-serif';});
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
+}
+{
+  const back=mesh(new RoundedBoxGeometry(1.15,0.74,0.1,2,0.02),matFrame,[0.25,H,0.98]);reg(back,'plate');motor.add(back);
+  const pm=new THREE.MeshPhysicalMaterial({map:plateTexture(),metalness:0.85,roughness:0.32,clearcoat:0.4});
+  const plate=mesh(new THREE.BoxGeometry(1.0,0.625,0.014),[M.copper(),M.copper(),M.copper(),M.copper(),pm,M.copper()],[0.25,H,1.037]);
+  reg(plate,'plate');motor.add(plate);
+  for(const [sx,sy] of [[-1,-1],[1,-1],[-1,1],[1,1]]){
+    const r=mesh(new THREE.CylinderGeometry(0.022,0.022,0.02,12),M.steel(),[0.25+sx*0.46,H+sy*0.275,1.045],[AX,0,0]);reg(r,'plate');motor.add(r);
+  }
+}
+
+// ================= TERMINAL BOX =================
+const CX=0.1, BASE=2.37, WALLH=0.6, BX=1.7, BZ=1.3, WT=0.08;
+const tbox=new THREE.Group();motor.add(tbox);
+const matBox=M.paintLight();
+{
+  const adapter=mesh(new RoundedBoxGeometry(1.9,0.1,1.5,3,0.03),matBox,[CX,BASE-0.04,0]);reg(adapter,'terminal');tbox.add(adapter);
+  const bot=mesh(new THREE.BoxGeometry(BX,0.06,BZ),matBox,[CX,BASE+0.03,0]);reg(bot,'terminal');tbox.add(bot);
+  const yW=BASE+WALLH/2;
+  for(const s of [-1,1]){
+    const fb=mesh(new RoundedBoxGeometry(BX,WALLH,WT,3,0.02),matBox,[CX,yW,s*(BZ/2-WT/2)]);reg(fb,'terminal');tbox.add(fb);
+    const lr=mesh(new RoundedBoxGeometry(WT,WALLH,BZ-WT*2+0.02,3,0.02),matBox,[CX+s*(BX/2-WT/2),yW,0]);reg(lr,'terminal');tbox.add(lr);
+  }
+  // corner bosses
+  for(const sx of [-1,1])for(const sz of [-1,1]){
+    const p=mesh(new THREE.CylinderGeometry(0.08,0.08,WALLH,20),matBox,[CX+sx*(BX/2-0.08),yW,sz*(BZ/2-0.08)]);reg(p,'terminal');tbox.add(p);
+  }
+  // cable gland (back wall)
+  const gz=-BZ/2;
+  const g1=mesh(new THREE.CylinderGeometry(0.2,0.2,0.1,40),M.black(),[CX,BASE+0.33,gz-0.05],[AX,0,0]);reg(g1,'terminal');tbox.add(g1);
+  const g2=mesh(new THREE.CylinderGeometry(0.17,0.17,0.2,6),M.brass(),[CX,BASE+0.33,gz-0.17],[AX,0,0]);reg(g2,'terminal');tbox.add(g2);
+  const g3=mesh(new THREE.CylinderGeometry(0.13,0.15,0.14,32),M.black(),[CX,BASE+0.33,gz-0.31],[AX,0,0]);reg(g3,'terminal');tbox.add(g3);
+  // earth stud on the front-left wall
+  const gnd=mesh(new THREE.CylinderGeometry(0.045,0.045,0.12,16),M.brass(),[CX-BX/2-0.06,BASE+0.15,0.35],[0,0,AX]);reg(gnd,'terminal');tbox.add(gnd);
+  const gnut=mesh(new THREE.CylinderGeometry(0.07,0.07,0.04,6),M.brass(),[CX-BX/2-0.12,BASE+0.15,0.35],[0,0,AX]);reg(gnut,'terminal');tbox.add(gnut);
+}
+
+// terminal block with printed labels
+const TC=[-0.42,0,0.42];            // column offsets
+const ROWZ={back:-0.21,front:0.21};
+const TERM=[ // name,row,col
+ ['U1','back',0],['V1','back',1],['W1','back',2],
+ ['W2','front',0],['U2','front',1],['V2','front',2]];
+const SY=BASE+0.06+0.1;            // top of block
+function boardTexture(){
+  const W=1024,Hh=540,c=document.createElement('canvas');c.width=W;c.height=Hh;const g=c.getContext('2d');
+  g.fillStyle='#2b2118';g.fillRect(0,0,W,Hh);
+  for(let i=0;i<600;i++){g.fillStyle=`rgba(255,255,255,${Math.random()*0.03})`;g.fillRect(Math.random()*W,Math.random()*Hh,2+Math.random()*30,1);}
+  g.strokeStyle='rgba(235,200,165,.35)';g.lineWidth=3;g.strokeRect(14,14,W-28,Hh-28);
+  g.fillStyle='#f1e2d0';g.textAlign='center';g.textBaseline='middle';g.font='600 46px "IBM Plex Sans KR",sans-serif';
+  const bw=1.5,bd=0.78;
+  for(const [n,row,col] of TERM){
+    const u=(TC[col]+bw/2)/bw, v=(ROWZ[row]+(row==='back'?-0.14:0.14)+bd/2)/bd;
+    g.fillText(n,u*W,v*Hh);
+  }
+  g.font='400 26px "IBM Plex Sans KR",sans-serif';g.fillStyle='rgba(241,226,208,.6)';
+  g.fillText('L1 → U1    L2 → V1    L3 → W1',W/2,Hh/2+4);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
+}
+{
+  const bm=M.bakelite();
+  const lm=new THREE.MeshStandardMaterial({map:boardTexture(),roughness:0.5,metalness:0.05});
+  const board=mesh(new THREE.BoxGeometry(1.5,0.1,0.78),[bm,bm,lm,bm,bm,bm],[CX,BASE+0.06+0.05,0]);reg(board,'terminal');tbox.add(board);
+  for(const sx of [-1,1])for(const sz of [-1,1]){ // standoffs
+    const so=mesh(new THREE.CylinderGeometry(0.035,0.035,0.02,12),M.steel(),[CX+sx*0.7,SY+0.01,sz*0.34]);reg(so,'terminal');tbox.add(so);
+  }
+}
+const studPos={};
+for(const [n,row,col] of TERM){
+  const x=CX+TC[col],z=ROWZ[row];studPos[n]=new THREE.Vector3(x,SY,z);
+  const boss=mesh(new THREE.CylinderGeometry(0.1,0.11,0.06,6),M.brass(),[x,SY+0.03,z]);reg(boss,'terminal');tbox.add(boss);
+  const stud=mesh(new THREE.CylinderGeometry(0.042,0.042,0.34,20),M.brass(),[x,SY+0.17,z]);reg(stud,'terminal');tbox.add(stud);
+  const wash=mesh(new THREE.CylinderGeometry(0.085,0.085,0.012,24),M.steel(),[x,SY+0.195,z]);reg(wash,'terminal');tbox.add(wash);
+  const nut=mesh(new THREE.CylinderGeometry(0.07,0.07,0.055,6),M.brass(),[x,SY+0.228,z]);reg(nut,'terminal');tbox.add(nut);
+}
+// supply cables (L1 brown, L2 black, L3 grey) back-gland -> U1 V1 W1 lugs
+{
+  const cols=[0x6b4426,0x1d1d20,0x9a9da3];
+  ['U1','V1','W1'].forEach((n,i)=>{
+    const xs=studPos[n].x, xo=CX+(i-1)*0.1, xg=CX+(i-1)*0.06, ly=SY+0.095;
+    const pts=[[xo,0.05,-3.9],[xo,0.06,-3.2],[xo,0.45,-2.5],[xo,1.5,-1.85],[xo,2.35,-1.3],[xo,BASE+0.33,-0.98],[xg,BASE+0.33,-0.72],[xg,BASE+0.31,-0.52],[xs*0.5+xg*0.5,ly+0.04,-0.38],[xs,ly,-0.3]]
+      .map(p=>new THREE.Vector3(...p));
+    const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal');
+    const cab=mesh(new THREE.TubeGeometry(curve,160,0.042,12,false),new THREE.MeshPhysicalMaterial({color:cols[i],roughness:0.5,metalness:0.0,clearcoat:0.35,clearcoatRoughness:0.5}),[0,0,0]);
+    reg(cab,'terminal');tbox.add(cab);
+    const barrel=mesh(new THREE.CylinderGeometry(0.052,0.052,0.14,16),M.steel(),[xs,ly,-0.24-0.07],[AX,0,0]);reg(barrel,'terminal');tbox.add(barrel);
+    const lug=mesh(new THREE.CylinderGeometry(0.095,0.095,0.018,28),M.steel(),[xs,ly,-0.21]);reg(lug,'terminal');tbox.add(lug);
+  });
+}
+
+// ---- link bars (editable wiring) ----
+const BAR_T=0.024,BAR_W=0.105;
+const SLOTS={
+  C0:{from:'U1',to:'W2',y:0.125,label:'U1–W2'},
+  C1:{from:'V1',to:'U2',y:0.125,label:'V1–U2'},
+  C2:{from:'W1',to:'V2',y:0.125,label:'W1–V2'},
+  Y:{from:'W2',to:'V2',y:0.163,label:'W2–U2–V2'}};
+const links={Y:false,C0:false,C1:false,C2:false};
+const slotMeshes=[];
+const ghostMat=()=>new THREE.MeshBasicMaterial({color:0xd9915a,transparent:true,opacity:0.0,depthWrite:false,toneMapped:false});
+for(const [id,s] of Object.entries(SLOTS)){
+  const a=studPos[s.from],b=studPos[s.to];
+  const mid=a.clone().add(b).multiplyScalar(0.5);mid.y=SY+s.y;
+  const len=a.distanceTo(b)+0.19;
+  const alongX=Math.abs(a.x-b.x)>Math.abs(a.z-b.z);
+  const geo=new RoundedBoxGeometry(alongX?len:BAR_W,BAR_T,alongX?BAR_W:len,2,0.011);
+  const bar=new THREE.Group();bar.position.copy(mid);
+  const bm=mesh(geo,M.copper(),[0,0,0]);bar.add(bm);
+  for(const e of [a,b]){ // bolt holes
+    const h=mesh(new THREE.CylinderGeometry(0.046,0.046,BAR_T+0.004,18),M.black(),[e.x-mid.x,0,e.z-mid.z]);h.castShadow=false;bar.add(h);
+  }
+  bar.userData={slot:id,t:0,tt:0,baseY:mid.y};
+  bar.traverse(o=>{if(o.isMesh){o.userData.slot=id;slotMeshes.push(o);}});
+  const ghost=new THREE.Mesh(geo,ghostMat());ghost.position.copy(mid);ghost.userData.slot=id;ghost.userData.isGhost=true;ghost.renderOrder=5;
+  const edge=new THREE.LineSegments(new THREE.EdgesGeometry(geo),new THREE.LineBasicMaterial({color:0xe09a62,transparent:true,opacity:0,toneMapped:false,depthTest:false}));
+  edge.renderOrder=6;ghost.add(edge);ghost.userData.edge=edge;
+  tbox.add(bar,ghost);slotMeshes.push(ghost);
+  SLOTS[id].bar=bar;SLOTS[id].ghost=ghost;
+  bar.visible=false;bar.scale.setScalar(0.01);
+}
+
+// ---- lid (hinged at the back edge) ----
+const lidPivot=new THREE.Group();lidPivot.position.set(CX,BASE+WALLH,-BZ/2);tbox.add(lidPivot);
+function lidTexture(){
+  const c=document.createElement('canvas');c.width=512;c.height=256;const g=c.getContext('2d');
+  g.fillStyle='#d6a273';g.fillRect(0,0,512,256);
+  g.fillStyle='rgba(255,255,255,.12)';for(let i=0;i<120;i++)g.fillRect(0,Math.random()*256,512,1);
+  g.fillStyle='#2b1507';g.textAlign='center';g.font='600 40px "IBM Plex Sans KR",sans-serif';g.fillText('⚠ 고전압 주의',256,100);
+  g.font='400 26px "IBM Plex Sans KR",sans-serif';g.fillText('전원 차단 후 개방',256,150);g.fillText('400 / 690 V  ·  6 TERMINALS',256,196);
+  const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;return t;
+}
+{
+  const lid=mesh(new RoundedBoxGeometry(BX+0.08,0.08,BZ+0.08,4,0.03),matBox,[0,0.04,BZ/2]);reg(lid,'lid');lidPivot.add(lid);
+  const gasket=mesh(new THREE.BoxGeometry(BX-0.06,0.02,BZ-0.06),M.black(),[0,-0.005,BZ/2]);reg(gasket,'lid');lidPivot.add(gasket);
+  const lm=new THREE.MeshPhysicalMaterial({map:lidTexture(),metalness:0.8,roughness:0.35});
+  const label=mesh(new THREE.BoxGeometry(0.72,0.012,0.36),[M.copper(),M.copper(),lm,M.copper(),M.copper(),M.copper()],[0,0.086,BZ/2]);reg(label,'lid');lidPivot.add(label);
+  for(const sx of [-1,1])for(const sz of [-1,1]){
+    const b=mesh(new THREE.CylinderGeometry(0.052,0.052,0.045,6),M.steel(),[sx*(BX/2-0.08),0.1,BZ/2+sz*(BZ/2-0.08)]);reg(b,'lid');lidPivot.add(b);
+  }
+  for(const sx of [-0.55,0.55]){ // hinges
+    const h=mesh(new THREE.CylinderGeometry(0.05,0.05,0.2,20),M.darksteel(),[sx,0.01,-0.02],[0,0,AX]);reg(h,'lid');lidPivot.add(h);
+  }
+}
+const lid={angle:0,target:0,open:false};
+
+// ================= STATE / UI =================
+const PART_NAME={frame:'프레임 · 냉각핀',plate:'명판',terminal:'단자박스',lid:'단자박스',shaft:'샤프트 · 구동측',fan:'냉각 팬 커버'};
+const INFO={
+ frame:{t:'프레임 · 냉각핀',s:'전폐 외선형(TEFC) 몸체',p:'프레임 안쪽에 고정자 철심과 권선이 들어 있습니다. 손실로 생긴 열은 길이 방향 냉각핀으로 빠져나가고, 그 위로 팬이 바람을 보냅니다.',kv:[['보호 등급','IP55'],['절연 등급','F종 (155 °C)'],['냉각 방식','IC411 (자기 팬)']]},
+ plate:{t:'명판',s:'정격값 (예시 데이터)',p:'명판의 전압이 두 개인 이유는 같은 권선을 다르게 묶기 때문입니다. 단자박스에서 Δ로 묶으면 400 V 전원에, Y로 묶으면 690 V 전원에 맞습니다.',kv:[['출력','75 kW'],['전압','400 Δ / 690 Y V'],['전류','132 / 76 A'],['주파수 · 극수','50 Hz · 4극'],['정격 회전수','1485 rpm'],['역률','0.86']]},
+ shaft:{t:'샤프트 · 구동측 엔드실드',s:'출력축과 베어링',p:'토크가 부하로 나가는 축입니다. 구리색 표식은 회전이 눈에 보이도록 붙인 마커입니다. 구동 버튼을 눌러 돌려 보세요.',kv:[['동기 속도','1500 rpm'],['정격 슬립','1.0 %'],['정격 토크','≈ 482 N·m']]},
+ fan:{t:'냉각 팬 · 팬 커버',s:'비구동측(NDE)',p:'샤프트 뒤쪽 팬이 커버의 통풍구로 공기를 들이마셔 프레임 핀 위로 불어 보냅니다. 팬 풍량은 회전수에 비례하므로 저속·인버터 운전에서는 열이 쌓이기 쉽습니다.',kv:[['풍향','NDE → DE'],['냉각 풍량','회전수에 비례']]},
+ terminal:{t:'단자박스',s:'권선 끝 6개가 모이는 곳',p:'고정자 권선 3개의 양 끝(U1 V1 W1 / W2 U2 V2)이 이 단자판에 나옵니다. 링크 바를 어떻게 놓느냐로 Y와 Δ가 결정됩니다.',kv:[['단자','U1 V1 W1 · W2 U2 V2'],['명판 결선','400 V Δ / 690 V Y']]}
+};
+const VIEW={
+ overview:{pos:[6.4,3.6,7.2],tgt:[0.1,1.35,0]},
+ frame:{pos:[-0.6,2.9,4.6],tgt:[0,1.3,0]},
+ plate:{pos:[0.5,1.55,3.1],tgt:[0.25,1.3,1.0]},
+ terminal:{pos:[2.4,4.5,3.6],tgt:[CX,2.65,0]},
+ open:{pos:[CX+0.12,5.0,1.75],tgt:[CX,2.55,0.02]},
+ shaft:{pos:[4.7,2.1,2.6],tgt:[2.0,1.3,0]},
+ fan:{pos:[-4.9,2.4,3.4],tgt:[-1.9,1.3,0]}
+};
+const CHIPS=[['overview','전체'],['frame','프레임'],['plate','명판'],['terminal','단자박스'],['shaft','샤프트'],['fan','냉각 팬']];
+let mode='overview',current='overview',supply=400,running=false,tween=null;
+
+const chipsEl=$('#chips');
+chipsEl.innerHTML=CHIPS.map(([k,l])=>`<button data-k="${k}">${l}</button>`).join('');
+const cardEl=$('#card'),heroEl=$('#hero'),backEl=$('#back'),tipEl=$('#tip'),runEl=$('#run');
+
+function flyTo(key,dur=1.25){
+  const v=VIEW[key];
+  tween={t0:performance.now(),dur:dur*1000,fp:camera.position.clone(),ft:controls.target.clone(),tp:new THREE.Vector3(...v.pos),tt:new THREE.Vector3(...v.tgt)};
+  controls.enabled=false;
+}
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+
+function evalWiring(){
+  const cAll=links.C0&&links.C1&&links.C2, cAny=links.C0||links.C1||links.C2, cN=+links.C0+ +links.C1+ +links.C2;
+  if(!links.Y&&!cAny)return{conn:'none',lvl:'idle',msg:'링크 바가 없습니다. 아래 프리셋을 쓰거나 점선 칸을 눌러 바를 놓으세요.',factor:0};
+  if(links.Y&&cAny)return{conn:'bad',lvl:'bad',msg:'Y 바와 Δ 바가 함께 놓여 상간이 단락됩니다. 전원을 넣으면 안 되는 결선입니다.',factor:0};
+  if(links.Y)return fin('Y');
+  if(cAll)return fin('D');
+  return{conn:'part',lvl:'bad',msg:`Δ 바가 ${cN}/3개뿐이라 권선 일부가 열려 있습니다. 3개를 모두 놓아야 Δ가 됩니다.`,factor:0};
+}
+function fin(c){
+  const vph=c==='Y'?supply/Math.sqrt(3):supply, r=vph/400;
+  const iph=r*132/Math.sqrt(3), il=c==='Y'?iph:iph*Math.sqrt(3);
+  const o={conn:c,vph,r,torque:r*r,il};
+  if(Math.abs(r-1)<0.03){o.lvl='ok';o.msg=`정격 결선입니다. 권선에 정격 ${vph.toFixed(0)} V가 걸립니다.`;o.factor=1;}
+  else if(r<1){o.lvl='warn';o.msg=`권선 전압이 정격의 ${(r*100).toFixed(0)}%입니다. 기동 시 전류를 줄이는 Y-Δ 기동 상태와 같고 토크는 약 ⅓로 줄어요. 부하를 걸고 오래 두면 과열됩니다.`;o.factor=0.55;}
+  else{o.lvl='bad';o.msg=`권선에 정격의 ${(r*100).toFixed(0)}%인 ${vph.toFixed(0)} V가 걸립니다. 절연이 견디지 못해 소손될 수 있으니 Y로 묶어야 합니다.`;o.factor=1.4;}
+  return o;
+}
+const LVL={ok:'정상',warn:'주의',bad:'위험',idle:'대기'};
+
+function renderCard(){
+  if(mode==='overview'){cardEl.classList.remove('on');return;}
+  let h='';
+  if(mode==='open'){
+    const e=evalWiring(),ok=e.vph!==undefined;
+    h=`<h2>결선 편집</h2><div class="sub">링크 바를 눌러 놓거나 빼세요</div>
+    <div class="row" style="margin-top:12px"><button class="btn ghost" data-act="pY">Y 결선</button><button class="btn ghost" data-act="pD">Δ 결선</button><button class="btn ghost" data-act="pC">모두 해제</button></div>
+    <div class="lab">공급 전압 (선간)</div>
+    <div class="seg"><button data-act="v400" class="${supply===400?'on':''}">400 V</button><button data-act="v690" class="${supply===690?'on':''}">690 V</button></div>
+    <div id="status" class="${e.lvl}"><b>${LVL[e.lvl]}</b> · ${e.msg}</div>
+    <div class="kv"><span>현재 결선</span><b>${e.conn==='Y'?'Y (스타)':e.conn==='D'?'Δ (델타)':'–'}</b>
+    <span>권선 상전압</span><b>${ok?e.vph.toFixed(0)+' V':'–'}</b>
+    <span>정격 대비 전압</span><b>${ok?(e.r*100).toFixed(0)+' %':'–'}</b>
+    <span>상대 토크 (∝V²)</span><b>${ok?(e.torque*100).toFixed(0)+' %':'–'}</b>
+    <span>선전류 (비례 추정)</span><b>${ok?e.il.toFixed(0)+' A':'–'}</b></div>
+    <p style="font-size:12px;color:var(--mute)">명판 400 Δ / 690 Y 기준. 전류와 토크는 전압비에 비례·제곱 비례하는 단순 모델이라 실제 부하 특성과는 다릅니다.</p>
+    <div class="row"><button class="btn ghost" data-act="close">단자박스 닫기</button></div>`;
+  }else{
+    const k=mode==='terminal'?'terminal':current, i=INFO[k];
+    h=`<h2>${i.t}</h2><div class="sub">${i.s}</div><p>${i.p}</p><div class="kv">${i.kv.map(a=>`<span>${a[0]}</span><b>${a[1]}</b>`).join('')}</div>`;
+    if(k==='terminal')h+=`<div class="row"><button class="btn" data-act="open">단자박스 열기</button></div>`;
+  }
+  cardEl.innerHTML=h;cardEl.classList.add('on');
+}
+function sync(){
+  chipsEl.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.dataset.k===(mode==='open'?'terminal':current)));
+  heroEl.classList.toggle('off',mode!=='overview');
+  backEl.classList.toggle('on',mode!=='overview');
+  pinsEl.style.opacity=mode==='overview'?1:0;pinsEl.style.pointerEvents=mode==='overview'?'auto':'none';
+  renderCard();
+}
+function go(key){
+  if(key==='open'){mode='open';current='terminal';lid.target=-1.78;flyTo('open',1.3);}
+  else if(key==='overview'){mode='overview';current='overview';lid.target=0;flyTo('overview',1.3);}
+  else if(key==='terminal'){mode='terminal';current='terminal';lid.target=0;flyTo('terminal');}
+  else{mode='part';current=key;lid.target=0;flyTo(key);}
+  sync();
+}
+function setPreset(p){
+  links.Y=p==='Y';links.C0=links.C1=links.C2=p==='D';
+  for(const id in SLOTS)SLOTS[id].bar.userData.tt=links[id]?1:0;
+}
+function toggleSlot(id){links[id]=!links[id];SLOTS[id].bar.userData.tt=links[id]?1:0;renderCard();}
+
+cardEl.addEventListener('click',e=>{
+  const a=e.target.closest('[data-act]')?.dataset.act;if(!a)return;
+  if(a==='open')go('open');else if(a==='close')go('terminal');
+  else if(a==='pY'){setPreset('Y');renderCard();}else if(a==='pD'){setPreset('D');renderCard();}
+  else if(a==='pC'){setPreset('N');renderCard();}
+  else if(a==='v400'||a==='v690'){supply=a==='v400'?400:690;renderCard();}
+});
+chipsEl.addEventListener('click',e=>{const k=e.target.closest('button')?.dataset.k;if(k)go(k==='terminal'&&mode==='open'?'open':k);});
+backEl.addEventListener('click',()=>go('overview'));
+runEl.addEventListener('click',()=>{running=!running;runEl.textContent=running?'■ 정지':'▶ 구동';});
+
+// pins (hotspots shown in overview)
+const pinsEl=$('#pins');
+const PINS=[['terminal','단자박스',[CX,3.1,0]],['plate','명판',[0.25,H+0.45,1.1]],['shaft','샤프트',[2.3,H+0.25,0]],['fan','냉각 팬',[-2.1,H+0.55,0.2]],['frame','프레임',[-0.55,H+0.9,0.8]]];
+const pinEls=PINS.map(([k,l,p])=>{const d=document.createElement('div');d.className='pin';d.innerHTML=`<i></i><em>${l}</em>`;d.addEventListener('click',()=>go(k));pinsEl.appendChild(d);return {d,p:new THREE.Vector3(...p)};});
+const _v=new THREE.Vector3();
+function updatePins(){
+  if(mode!=='overview')return;
+  for(const {d,p} of pinEls){
+    _v.copy(p).project(camera);
+    const vis=_v.z<1;
+    d.style.transform=`translate(${(_v.x*0.5+0.5)*innerWidth-6}px,${(-_v.y*0.5+0.5)*innerHeight-6}px)`;
+    d.style.display=vis?'flex':'none';
+  }
+}
+
+// ================= PICKING =================
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2();
+function pick(ev){
+  ndc.set(ev.clientX/innerWidth*2-1,-(ev.clientY/innerHeight)*2+1);ray.setFromCamera(ndc,camera);
+  if(mode==='open'){
+    const h=ray.intersectObjects(slotMeshes,false)[0];
+    if(h)return{slot:h.object.userData.slot};
+    const lh=ray.intersectObjects(partMeshes.lid||[],false)[0];
+    return lh?{lid:true}:null;
+  }
+  const h=ray.intersectObjects(pickables,false)[0];
+  if(!h)return null;
+  let p=h.object.userData.part;if(p==='lid')p='terminal';return{part:p};
+}
+const glow={};
+function setGlowTarget(part){for(const k of ['frame','plate','terminal','shaft','fan'])glow[k]=glow[k]||{v:0,t:0};for(const k in glow)glow[k].t=(k===part)?1:0;}
+setGlowTarget(null);
+function applyGlow(dt){
+  for(const k in glow){
+    const g=glow[k];if(Math.abs(g.v-g.t)<0.002)continue;g.v+=(g.t-g.v)*Math.min(1,dt*10);
+    const list=[...(partMeshes[k]||[]),...(k==='terminal'?(partMeshes.lid||[]):[])];
+    for(const m of list){(Array.isArray(m.material)?m.material:[m.material]).forEach(mt=>{if(mt.emissive){mt.emissive.setRGB(0.38*g.v,0.16*g.v,0.04*g.v);}});}
+  }
+}
+let hoverSlot=null,lastMove=null,moveQueued=false;
+function onMove(ev){
+  lastMove=ev;if(moveQueued)return;moveQueued=true;
+  requestAnimationFrame(()=>{
+    moveQueued=false;if(tween||ev.pointerType==='touch')return;
+    const h=pick(lastMove);
+    hoverSlot=h?.slot||null;
+    let label=null;
+    if(h?.part&&mode!=='open'){setGlowTarget(h.part);label=PART_NAME[h.part];}
+    else if(h?.slot){setGlowTarget(null);label=`링크 바 ${SLOTS[h.slot].label} · 클릭해서 ${links[h.slot]?'빼기':'놓기'}`;}
+    else if(h?.lid){label='덮개';setGlowTarget(null);}
+    else setGlowTarget(null);
+    canvas.style.cursor=h?'pointer':'grab';
+    tipEl.textContent=label||'';tipEl.style.opacity=label?1:0;
+    tipEl.style.left=lastMove.clientX+'px';tipEl.style.top=lastMove.clientY+'px';
+  });
+}
+let down=null;
+canvas.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()};});
+canvas.addEventListener('pointermove',onMove);
+canvas.addEventListener('pointerleave',()=>{setGlowTarget(null);tipEl.style.opacity=0;});
+canvas.addEventListener('pointerup',e=>{
+  if(!down||tween)return;
+  const moved=Math.hypot(e.clientX-down.x,e.clientY-down.y);down=null;
+  if(moved>6)return;
+  const h=pick(e);if(!h)return;
+  if(h.slot){toggleSlot(h.slot);return;}
+  if(h.lid){go('terminal');return;}
+  if(h.part){
+    if(mode==='terminal'&&h.part==='terminal'){go('open');return;}
+    go(h.part);
+  }
+});
+
+// ================= LOOP =================
+function resize(){
+  const w=innerWidth,h=innerHeight;
+  renderer.setSize(w,h,false);camera.aspect=w/h;
+  camera.fov=w/h<0.8?46:32;camera.updateProjectionMatrix();
+  mirror.getRenderTarget().setSize(Math.round(w*DPR*0.6),Math.round(h*DPR*0.6));
+}
+addEventListener('resize',resize);resize();
+
+setPreset('D');sync();
+const clock=new THREE.Clock();let frames=0,pulse=0;
+function frame(){
+  const dt=Math.min(clock.getDelta(),0.05);pulse+=dt;
+  if(tween){
+    const k=Math.min(1,(performance.now()-tween.t0)/tween.dur),e=ease(k);
+    camera.position.lerpVectors(tween.fp,tween.tp,e);controls.target.lerpVectors(tween.ft,tween.tt,e);
+    if(k>=1){tween=null;controls.enabled=true;}
+  }
+  controls.update();
+  // lid
+  lid.angle+=(lid.target-lid.angle)*Math.min(1,dt*5);lidPivot.rotation.x=lid.angle;
+  // link bars
+  const editing=mode==='open'&&Math.abs(lid.angle-lid.target)<0.12;
+  for(const id in SLOTS){
+    const s=SLOTS[id],b=s.bar,u=b.userData;
+    u.t+=(u.tt-u.t)*Math.min(1,dt*9);
+    b.visible=u.t>0.02;b.scale.setScalar(0.4+0.6*u.t);b.scale.y=1;b.position.y=u.baseY+(1-u.t)*0.12;
+    const gm=s.ghost.material,em=s.ghost.userData.edge.material;
+    const hov=hoverSlot===id;
+    const want=editing?(u.tt?0:(hov?0.45:0.14+0.06*Math.sin(pulse*3))):0;
+    gm.opacity+=(want-gm.opacity)*Math.min(1,dt*10);
+    const ew=editing?(u.tt?(hov?0.9:0):0.75):0;em.opacity+=(ew-em.opacity)*Math.min(1,dt*10);
+  }
+  // spin
+  const e=evalWiring();
+  if(running&&e.factor>0)shaftGroup.rotation.x+=dt*3.2*e.factor;
+  applyGlow(dt);
+  updatePins();
+  renderer.render(scene,camera);
+  if(++frames===3)$('#load').classList.add('off');
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__motor={go,links,setPreset,evalWiring,camera,controls,get mode(){return mode;}};
+</script>
+</body>
+</html>
