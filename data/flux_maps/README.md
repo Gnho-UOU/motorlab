@@ -23,4 +23,4 @@ id_A,iq_A,psi_d_Wb,psi_q_Wb,torque_Nm
 
 ## 현재 파일
 
-없음. 첫 파일은 ORNL 프리우스 2004 형상으로 FEMM을 돌린 뒤 이 폴더에 추가한다.
+- `prius2004_xfemm_delta0_25A.csv`: 2004 Prius, 25 A 간격 11 x 11점(id −250~0, iq 0~250 A). 형상·재료는 제3자 값(`data/benchmarks/prius2004_geometry.json`), 솔버는 xfemm `femmcli`. **회전자 위치 한 곳(δ = 0)에서만 계산**했고 `torque_Nm`은 그 위치의 AGE 순간 토크(비교용)다. 만든 방법과 한계는 `docs/FEA_OPTIONS.md` 3-2절과 CSV 머리 주석을 본다. 다시 만들기: `FEMMCLI=<femmcli 경로> python femm/make_flux_map.py <출력.csv> 25`.
