@@ -94,6 +94,7 @@ class Label:
     turns: int = 0
     magdir_deg: float = 0.0
     name: str = ""
+    group: int = 0          # 후처리에서 mo_groupselectblock으로 한 번에 고르기 위한 블록 그룹(회전자 = 1)
 
 
 @dataclass
@@ -205,8 +206,9 @@ def lua_model(g: dict, sec: Sector, filename: str = "prius.fem") -> str:
     L += [f'mi_addbhpoint("Steel", {B:.9g}, {H:.9g})' for H, B in g["steel"]["BH_H_Apm_B_T"][1:]]
     L += [f'mi_addcircprop("{c}", 0, 1)' for c in "ABC"]
     bc, age = (5, 7) if sec.antiperiodic else (4, 6)      # BdryFormat: 4 주기, 5 반대칭, 6 주기 AGE, 7 반대칭 AGE
-    L += ['mi_addboundprop("A0", 0, 0, 0, 0, 0, 0, 0, 0, 0)', f'mi_addboundprop("SPBC", 0, 0, 0, 0, 0, 0, 0, 0, {bc})',
-          f'mi_addboundprop("RPBC", 0, 0, 0, 0, 0, 0, 0, 0, {bc})', f'mi_addboundprop("AGE", 0, 0, 0, 0, 0, 0, 0, 0, {age})']
+    formats = {"A0": 0, "SPBC": bc, "RPBC": bc, "AGE": age}
+    L += [f'mi_addboundprop("{n}", 0, 0, 0, 0, 0, 0, 0, 0, {f})' for n, f in formats.items()
+          if any(e.boundary == n for e in sec.edges)]
     seen: set[tuple[int, int]] = set()
     for e in sec.edges:
         for z in (e.p1, e.p2):
@@ -236,7 +238,7 @@ def lua_model(g: dict, sec: Sector, filename: str = "prius.fem") -> str:
         circ = f'"{lab.circuit}"' if lab.circuit else '"<None>"'
         L.append(f"mi_addblocklabel({lab.pos.real:.12g}, {lab.pos.imag:.12g}) "
                  f"mi_selectlabel({lab.pos.real:.12g}, {lab.pos.imag:.12g})")
-        L.append(f'mi_setblockprop("{lab.material}", 0, {lab.meshsize:g}, {circ}, {lab.magdir_deg:.9g}, 0, {lab.turns}) '
+        L.append(f'mi_setblockprop("{lab.material}", 0, {lab.meshsize:g}, {circ}, {lab.magdir_deg:.9g}, {lab.group}, {lab.turns}) '
                  f"mi_clearselected()")
     L.append(f'mi_saveas("{filename}")')
     return "\n".join(L) + "\n"
