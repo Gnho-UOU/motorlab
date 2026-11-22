@@ -90,9 +90,44 @@ def optimal_current(model, limits, T, speed, objective="current") -> (id, iq, fe
 
 프리우스 2004 파라미터는 P0에서 ORNL 보고서를 읽은 뒤 `data/benchmarks/`에 출처와 함께 넣는다. 기억이나 추정으로 채우지 않는다.
 
-## 5. M3 이후 윤곽 (P2부터 상세화)
+## 5. M3 — 손실·효율맵 (`engine/losses.py`, P2)
 
-- `losses.py`: `copper_loss(model, id, iq, T_wind)`, `iron_loss(model, id, iq, we, steel)`(치·요크 자속밀도 × Steinmetz/Bertotti 분리식, 계수는 강판 데이터시트로 맞춤), `mech_loss(wm)`(a·ω + b·ω³), `efficiency_map(model, limits, T_grid, speed_grid)` → 효율·손실 성분 격자. 목표: 효율맵 1장 2초 이내.
+**계수 원칙.** 철손·기계손·구리 온도계수는 출처 있는 값이 아직 `data/`에 없다. 그래서 기본값을 두지 않고 전부 필수 인자로 받는다. 테스트는 합성 값(테스트 전용)을 쓰고, 실제 값은 강판 데이터시트·ORNL 보고서를 읽은 뒤 `data/`에 출처와 함께 넣는다.
+
+```python
+@dataclass(frozen=True)
+class IronParams:       # 치·요크 분리 손실 (기획서 5.4)
+    k_h: float          # 히스테리시스 계수 [W/(kg·Hz·T^β)]
+    k_e: float          # 와전류 계수 [W/(kg·Hz²·T²)]
+    beta: float         # Steinmetz 지수
+    m_tooth: float      # 치 질량 [kg]
+    m_yoke: float       # 요크 질량 [kg]
+    c_tooth: float      # 치 자속밀도 환산계수 [T/Wb]: B_tooth = c_tooth·|ψ|
+    c_yoke: float       # 요크 자속밀도 환산계수 [T/Wb]
+
+@dataclass(frozen=True)
+class MechParams:       # P_mech = a·ω + b·ω³
+    a: float            # [W/(rad/s)]
+    b: float            # [W/(rad/s)³]
+
+def winding_resistance(R20, T_c, alpha_cu) -> Rs    # R20·(1 + α·(T − 20)), T는 °C
+def copper_loss(model, id, iq) -> P_cu              # 1.5·Rs·(id² + iq²)
+def iron_loss(model, id, iq, wm, iron) -> P_fe      # f = p·ωm/2π, B_k = c_k·|ψ|
+def mech_loss(wm, mech) -> P_mech
+def loss_breakdown(model, id, iq, wm, iron, mech) -> LossBreakdown
+    # P_shaft = Te·ωm, P_in = P_shaft + P_cu + P_fe, P_out = P_shaft − P_mech, η = P_out / P_in
+def efficiency_map(model, limits, T_grid, speed_grid, iron, mech) -> EfficiencyMap
+    # 배열 모양 (n_T, n_speed). 동작점은 optimal_current_map(전류 최소)으로 정한다.
+```
+
+- `iron=None` 또는 `mech=None`이면 해당 손실을 0으로 둔다 (그때 `P_in = 1.5(vd·id + vq·iq)`가 된다 — 테스트로 확인).
+- 철손은 토크에 반영하지 않는다(등가 철손 저항 모델 생략, 6장 결정 유지). 철손은 입력 전력에만 더해진다.
+- 자속밀도는 ψ 크기에 비례한다고 근사한다. 환산계수 c는 기하(권선 턴수, 치·요크 단면적)에서 오며 P3에서 FEA와 비교한다.
+- `optimal_current_map(model, limits, T_grid, speeds) -> (id, iq, feasible)`는 `operating.py`에 둔다. 속도마다 dq 격자에서 "T 이상을 내는 점 중 전류 최소" 포락선을 구하고, 점마다 전류각을 확대 탐색으로 보정한다. 스칼라 `optimal_current`와 교차 검증한다. 보정이 전압 경계에서 실행 가능점을 못 찾으면 격자점을 그대로 쓰므로 실제 토크는 T_grid보다 약간 클 수 있고, 손실은 실제 토크로 계산한다.
+- 목표: 효율맵 1장(40×60) 2초 이내.
+
+## 5-1. M4 이후 윤곽
+
 - `vehicle.py`: `Vehicle`(질량, 등가질량계수, Cd, A, Crr, 기어비 G, 기어효율, 휠 반경), `load_cycle(name)`(WLTP/UDDS/HWFET, `data/cycles/`에 출처 기록), `run_cycle(vehicle, eff_map, cycle, regen_ratio)` → 에너지, 전비 km/kWh, 동작점 분포.
 - `magnet.py`, `optimize.py`: P5에서 설계.
 

@@ -66,6 +66,15 @@ def _vmag(model, id, iq, we):
     return np.hypot(vd, vq)
 
 
+def _dq_grid(model, limits):
+    """전동 사분면 전류 원 안의 dq 격자점 (id, iq)와 그 점의 토크 (1차원 배열)."""
+    I = limits.Imax
+    g_id, g_iq = np.meshgrid(np.linspace(-I, 0.0, _N_GRID), np.linspace(0.0, I, _N_GRID), indexing="ij")
+    inside = g_id**2 + g_iq**2 <= I**2
+    g_id, g_iq = g_id[inside], g_iq[inside]
+    return g_id, g_iq, model.torque(g_id, g_iq)
+
+
 def mtpa_point(model, Is):
     """전류 크기 Is에서 토크가 최대인 (id, iq) — MTPA (derivations.md 4절).
 
@@ -143,11 +152,7 @@ def max_torque_curve(model, limits: Limits, speeds) -> TorqueSpeedTable:
     """
     speeds = np.atleast_1d(np.asarray(speeds, dtype=float))
     I, V = limits.Imax, limits.Vmax
-
-    g_id, g_iq = np.meshgrid(np.linspace(-I, 0.0, _N_GRID), np.linspace(0.0, I, _N_GRID), indexing="ij")
-    inside = g_id**2 + g_iq**2 <= I**2
-    g_id, g_iq = g_id[inside], g_iq[inside]
-    g_T = model.torque(g_id, g_iq)
+    g_id, g_iq, g_T = _dq_grid(model, limits)
 
     n = speeds.size
     T_max, id_o, iq_o = (np.full(n, np.nan) for _ in range(3))
@@ -183,6 +188,83 @@ def _current_for_torque(model, T, beta, Imax):
         low = model.torque(*_polar(mid, beta)) < T
         lo, hi = np.where(low, mid, lo), np.where(low, hi, mid)
     return np.where(reachable, hi, np.nan)
+
+
+def optimal_current_map(model, limits: Limits, T_grid, speeds):
+    """(토크, 속도) 격자 전체의 최소 전류 운전점 (id, iq, feasible). 모양은 (n_T, n_speed). 효율맵용.
+
+    1) 속도마다 dq 격자에서 전압 제약을 만족하는 점을 토크 순으로 정렬하고, "T 이상을 내는 점 중
+       전류 최소"를 접미 최소값으로 한 번에 구한다 (T 이상이면 충분한 이유: 같은 β에서 전류가 줄면
+       토크가 줄므로 최소 전류점의 토크는 T와 같다).
+    2) 점마다 전류각 β 주변을 11점 격자로 훑고 구간을 1/5씩 줄이는 확대 탐색을 10번 하며 정확히 T를 내는
+       Is(β)가 최소인 β를 찾는다 (전압 위반은 무한대 비용). 모든 점을 한 번에 벡터 연산한다.
+    보정이 실행 가능한 점을 못 찾으면 격자점을 그대로 쓰므로 그 점의 토크는 T보다 약간 클 수 있다.
+    스칼라 `optimal_current`와는 독립 알고리즘이며 테스트에서 서로 비교한다. T ≥ 0만 다룬다.
+    """
+    T_grid = np.atleast_1d(np.asarray(T_grid, dtype=float))
+    speeds = np.atleast_1d(np.asarray(speeds, dtype=float))
+    if np.any(T_grid < 0):
+        raise ValueError("T < 0(회생)은 M4에서 확장한다")
+    I, V = limits.Imax, limits.Vmax
+    g_id, g_iq, g_T = _dq_grid(model, limits)
+    g_I = np.hypot(g_id, g_iq)
+
+    shape = (T_grid.size, speeds.size)
+    id_o, iq_o = np.full(shape, np.nan), np.full(shape, np.nan)
+    feasible = np.zeros(shape, dtype=bool)
+
+    for j, w in enumerate(speeds):
+        ok = _vmag(model, g_id, g_iq, model.p * w) <= V
+        if not ok.any():
+            continue
+        order = np.argsort(g_T[ok])
+        Ts, Is_, ids, iqs = g_T[ok][order], g_I[ok][order], g_id[ok][order], g_iq[ok][order]
+        n = Ts.size
+        # 접미 최소값의 위치: 뒤집어서 누적 최소를 구하고, 최소가 갱신된 가장 가까운 위치를 찾는다
+        rev = Is_[::-1]
+        record = np.where(rev == np.minimum.accumulate(rev), np.arange(n), 0)
+        suffix_arg = n - 1 - np.maximum.accumulate(record)[::-1]
+        k = np.searchsorted(Ts, T_grid, side="left")
+        hit = k < n
+        m = suffix_arg[np.minimum(k, n - 1)]
+        id_o[hit, j], iq_o[hit, j], feasible[hit, j] = ids[m[hit]], iqs[m[hit]], True
+
+    if not feasible.any():
+        return id_o, iq_o, feasible
+
+    # --- 점별 전류각 보정 (벡터화) ---
+    ii, jj = np.nonzero(feasible)
+    T_t, we_t = T_grid[ii], model.p * speeds[jj]
+    beta0 = np.arctan2(-id_o[ii, jj], iq_o[ii, jj])
+    step = I / (_N_GRID - 1)
+    half = np.clip(3 * step / np.maximum(np.hypot(id_o[ii, jj], iq_o[ii, jj]), step), 1e-6, pi / 4)
+    lo, hi = np.maximum(beta0 - half, 0.0), np.minimum(beta0 + half, pi / 2)
+
+    def cost(beta, T, we):
+        """정확히 T를 내는 전류 크기. 도달 불가이거나 전압 위반이면 무한대."""
+        Is = _current_for_torque(model, T, beta, I)
+        d, q = _polar(np.nan_to_num(Is), beta)
+        bad = np.isnan(Is) | (_vmag(model, d, q, we) > V)
+        return np.where(bad, np.inf, Is)
+
+    best_beta, best_cost = beta0, cost(beta0, T_t, we_t)
+    rows, frac = np.arange(T_t.size), np.linspace(0.0, 1.0, 11)
+    for _ in range(10):
+        b = lo[:, None] + (hi - lo)[:, None] * frac[None, :]
+        c = cost(b, T_t[:, None], we_t[:, None])
+        kb = np.argmin(c, axis=1)
+        improved = c[rows, kb] < best_cost
+        best_beta = np.where(improved, b[rows, kb], best_beta)
+        best_cost = np.where(improved, c[rows, kb], best_cost)
+        shrink = np.isfinite(best_cost)  # 실행 가능한 점을 찾은 행만 구간을 줄인다
+        h = (hi - lo) / 10
+        lo = np.where(shrink, np.maximum(best_beta - h, 0.0), lo)
+        hi = np.where(shrink, np.minimum(best_beta + h, pi / 2), hi)
+
+    done = np.isfinite(best_cost)
+    d, q = _polar(best_cost[done], best_beta[done])
+    id_o[ii[done], jj[done]], iq_o[ii[done], jj[done]] = d, q
+    return id_o, iq_o, feasible
 
 
 def optimal_current(model, limits: Limits, T, speed, objective: str = "current"):
