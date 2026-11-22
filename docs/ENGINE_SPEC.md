@@ -35,7 +35,7 @@ class MotorModel(Protocol):
 ```
 
 - `ConstantParamModel(p, Rs, Ld, Lq, psi_m)`: ψd = Ld·id + ψm, ψq = Lq·iq. 1단계 개발과 해석해 검증용.
-- `FluxMapModel.from_csv(path, p, Rs)` (**P3에서 구현. P1 범위 아님**): 격자 (id, iq) → (ψd, ψq) 표를 `scipy.interpolate.RegularGridInterpolator`로 보간. 포화·교차결합이 자연스럽게 반영된다. 격자 밖 요청은 오류(외삽 금지).
+- `FluxMapModel.from_csv(path, p, Rs)` (**엔진 쪽 구현 완료, 실제 FEA 맵은 P3에서 대기 중**): 격자 (id, iq) → (ψd, ψq) 표를 `scipy.interpolate.RegularGridInterpolator`(기본 선형)로 보간. 포화·교차결합이 자연스럽게 반영된다. 격자 밖 요청은 오류(외삽 금지, 부동소수점 오차 1e-9 상대는 경계로 당긴다). 머리 주석이 없는 CSV는 오류, 형식 전문은 `data/flux_maps/README.md`. 상수 모델을 격자로 찍은 CSV는 선형 보간이 정확히 재현하므로 두 모델이 같은 결과를 낸다(`tests/test_p3_fluxmap.py`).
   - CSV 열: `id_A, iq_A, psi_d_Wb, psi_q_Wb` (+ 선택: `torque_Nm` FEA 직접값). 파일 머리 주석에 출처·형상·온도·회전자 위치 평균 방식 기록.
   - `torque()`는 자속으로 계산한 값을 기본으로 하고, FEA 토크 열이 있으면 비교용으로 함께 보관.
 - 온도: `Rs(T) = R20 (1 + α_cu (T − 20))`, 자석 온도에 따른 ψm 변화는 M5에서 다룬다. P1에서는 Rs·ψm 모두 상수이고, `α_cu`는 출처를 달아 P2(`losses.py`)에서 넣는다.
