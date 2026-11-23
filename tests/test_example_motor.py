@@ -143,3 +143,17 @@ def test_geometry_validity_checks_for_design_variables():
         ok, why = em.geometry_ok({**em.P, key: val})
         assert not ok and why
     assert em.polygon_distance([0j, 1 + 0j, 1 + 1j, 1j], [3 + 0j, 4 + 0j, 4 + 1j, 3 + 1j]) == pytest.approx(2.0)
+
+
+def test_steel_bh_low_field_permeability_variant_is_monotone_continuous_and_bounded():
+    """코깅 역추론용 jfe_mu<K>: B-H가 단조 증가, 1000 A/m 이상은 jfe와 같고, 낮은 자계 B만 K가 클수록 커지며, K 범위를 벗어나면 거부한다."""
+    base = np.array(em.steel_bh("jfe"))
+    for k in ("1", "2", "4"):
+        b = np.array(em.steel_bh(f"jfe_mu{k}"))
+        assert np.all(np.diff(b[:, 0]) > 0) and np.all(np.diff(b[:, 1]) > 0)
+        hi = b[b[:, 0] >= 1000.0]
+        assert np.allclose(hi, base[base[:, 0] >= 1000.0])
+    b1, b4 = np.array(em.steel_bh("jfe_mu1")), np.array(em.steel_bh("jfe_mu4"))
+    assert np.interp(100.0, b4[:, 0], b4[:, 1]) > np.interp(100.0, b1[:, 0], b1[:, 1]) * 1.5
+    with pytest.raises(ValueError):
+        em.steel_bh("jfe_mu5")

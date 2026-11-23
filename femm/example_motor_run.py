@@ -34,7 +34,8 @@ P_PAIRS, RPM, RS, I_PK = 4, 4300.0, 0.0330, 330.0
 JOBS = int(os.environ.get("JOBS", "16"))
 G = load_grade("N45SH")
 VARIANTS = {"nominal": (G.br(50.0), G.mu_r(50.0), "jfe"), "m400": (G.br(50.0), G.mu_r(50.0), "m400"),
-            "brmin": (G.br(50.0) * 1320.0 / 1350.0, G.mu_r(50.0), "jfe")}
+            "brmin": (G.br(50.0) * 1320.0 / 1350.0, G.mu_r(50.0), "jfe"),
+            "mu4": (G.br(50.0), G.mu_r(50.0), "jfe_mu4")}                       # 낮은 자계 투자율을 4배로 키운 강판 (코깅 역추론의 상한)
 NOLOAD_POS = np.concatenate([np.arange(0.0, 90.0, 3.75), np.arange(0.0, 7.5, 0.625)])
 BETAS = (30.0, 35.0, 40.0, 45.0, 50.0, 55.0)
 LOAD_POS = (0.0, 3.75)
@@ -140,5 +141,21 @@ def cogging_sens() -> None:
     print("cogging sens done", len(jobs))
 
 
+def cogging_mu() -> None:
+    """코깅 역추론: JMAG 강판(35JN230)의 1000 A/m 아래 투자율을 모르므로, jfe 곡선의 낮은 자계 투자율을 K배(1~4)로 키워 코깅 p-p가 어떻게 변하는지 본다.
+    JMAG 코깅 p-p 1.29 N·m를 내려면 K가 얼마여야 하는지, 그 K가 물리적으로 그럴듯한지(실제 무방향성 강판의 B(100 A/m)는 약 1.0~1.2 T)를 비교한다."""
+    pos = [float(x) for x in np.arange(0.0, 7.5, 0.625)]
+    ks = ("jfe_mu1.5", "jfe_mu2", "jfe_mu3", "jfe_mu4")
+    jobs = [(v, r) for v in ks for r in pos]
+    with ThreadPoolExecutor(max_workers=JOBS) as ex:
+        res = list(ex.map(lambda j: em.solve_one((0.0, 0.0, 0.0), j[1], G.br(50.0), G.mu_r(50.0), j[0]), jobs))
+    with open(OUT / "example_motor_cogging_mu.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["variant", "rotor_deg", "torque_Nm"])
+        for (v, r), x in zip(jobs, res):
+            w.writerow([v, r, f"{x['torque_Nm']:.4f}"])
+    print("cogging mu done", len(jobs))
+
+
 if __name__ == "__main__":
-    {"noload": noload, "loaded": loaded, "ripple": ripple, "cogging_mesh": cogging_mesh, "cogging_sens": cogging_sens}[sys.argv[1]]()
+    {"noload": noload, "loaded": loaded, "ripple": ripple, "cogging_mesh": cogging_mesh, "cogging_sens": cogging_sens, "cogging_mu": cogging_mu}[sys.argv[1]]()

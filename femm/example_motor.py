@@ -93,6 +93,19 @@ def stator_points(p: dict = P) -> dict[str, complex]:
 
 
 def steel_bh(variant: str) -> list[list[float]]:
+    """강판 B-H 점 [A/m, T]. 'm400'(Prius), 'jfe'(JFE 대표값 + 낮은 자계 구간은 Prius 모양), 'jfe_mu<K>'(jfe에서 1000 A/m 아래의 투자율을 K배까지 키움, 역추론용)."""
+    if variant.startswith("jfe_mu"):
+        K = float(variant[6:])
+        if not 1.0 <= K <= 4.0:
+            raise ValueError("K는 1~4 (단조성 보장 범위)")
+        jfe = np.array(steel_bh("jfe"))
+        Hs = np.array([0.0, 20, 40, 60, 80, 100, 130, 160, 200, 250, 300, 400, 500, 650, 800, 1000])
+        x = Hs / 1000.0
+        Heff = Hs * (1 + (K - 1) * (1 - x) ** 2)               # 같은 B에 필요한 자계를 줄임: 낮은 자계 투자율만 키우고 1000 A/m에서 jfe와 연속
+        B = np.interp(Heff, jfe[:, 0], jfe[:, 1])
+        out = [[float(h), float(b)] for h, b in zip(Hs, B)]
+        out += [[float(h), float(b)] for h, b in jfe if h > 1000.0]
+        return out
     g = load_geometry()
     base = np.array(g["steel"]["BH_H_Apm_B_T"])
     if variant == "m400":
