@@ -92,3 +92,34 @@ def test_back_emf_thd_matches_jmag():
     ll = np.abs(np.fft.rfft(la[:, 0] - la[:, 1])) * 2 / len(sel)
     thd_ll = 100 * math.sqrt(np.sum((k[1:] * ll[2:12]) ** 2)) / (k[0] * ll[1])
     assert thd_ll == pytest.approx(9.63, rel=0.05)
+
+
+def test_back_emf_peak_and_rms_match_jmag_waveform_values():
+    """JMAG 슬라이드 그림의 파형 121점에서 읽은 값: 상 첨두 277.9 V·실효 207.76 V, 선간 첨두 521.3 V·실효 357.47 V (허용 3 %)."""
+    rows = list(csv.DictReader(open(FEA / "example_motor_noload.csv")))
+    sel = [r for r in rows if float(r["rotor_deg"]) < 90 and abs(float(r["rotor_deg"]) / 3.75 - round(float(r["rotor_deg"]) / 3.75)) < 1e-6]
+    la = np.array([[float(r["lambda_A_Wb"]), float(r["lambda_B_Wb"])] for r in sel])
+    we = 2 * math.pi * 4300 / 60 * 4
+    th = np.linspace(0, 2 * np.pi, 480, endpoint=False)
+
+    def emf(sig):
+        c = np.fft.rfft(sig) * 2 / len(sig)
+        return -we * sum(k * abs(c[k]) * np.sin(k * th + np.angle(c[k])) for k in range(1, 12))
+    ea, el = emf(la[:, 0]), emf(la[:, 0] - la[:, 1])
+    assert np.max(np.abs(ea)) == pytest.approx(277.96, rel=0.03)
+    assert np.sqrt(np.mean(ea ** 2)) == pytest.approx(207.76, rel=0.03)
+    assert np.max(np.abs(el)) == pytest.approx(521.39, rel=0.03)
+    assert np.sqrt(np.mean(el ** 2)) == pytest.approx(357.47, rel=0.03)
+
+
+def test_iron_loss_and_efficiency_against_jmag():
+    """35JN230 카탈로그 기반 철손 모델 + FEA 파형. 철손은 JMAG(751 W)보다 낮게 나오고(약 −20 %) 효율은 0.5%p 안에서 같다. 허용 범위는 현재 결과에 여유를 둔 것."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("iron15", ROOT / "notebooks" / "15_example_motor_iron_loss.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    out, core, torque, p_out, copper, eff, mass = mod.compute()
+    assert 450 < core < 800
+    assert abs(eff - 96.25) < 0.5
+    assert copper == pytest.approx(5397.15, rel=0.01)
+    assert 12 < mass[0] < 20 and 8 < mass[1] < 14                     # 고정자·회전자 철심 질량 [kg] (점 가중)

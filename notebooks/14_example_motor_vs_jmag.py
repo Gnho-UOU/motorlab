@@ -2,9 +2,10 @@
 
 입력: data/fea/example_motor_{noload,loaded,ripple}.csv (femm/example_motor_run.py)
 JMAG 수치의 출처: 연구실 강의 자료(JMAG 실습 매뉴얼의 해석 결과 화면, 파일은 저장소에 두지 않았다).
-  무부하 역기전력 '277.96(207.76) V, THD 15.10 %', 선간 '521.39(357.47) V, THD 9.63 %', 코깅 1.29 N·m,
+  무부하 상 역기전력 첨두 277.96 V·실효 207.76 V(THD 15.10 %), 선간 첨두 521.39 V·실효 357.47 V(THD 9.63 %), 코깅 p-p 1.29 N·m,
   부하 토크 350.64 N·m, 토크 리플 8.22 %, 단자 전압 첨두 385.75 V.
-  역기전력의 앞 숫자와 괄호 숫자의 뜻은 자료만으로 확정하지 못했다(후처리 코드는 둘 다 'rms'로 적는다). 이 노트북은 우리 값을 여러 정의로 보인다.
+  역기전력·코깅 숫자의 뜻(앞 숫자 = 파형 첨두, 괄호 = 실효)은 슬라이드의 그림(EMF 벡터)에서 파형 121점을 읽어 확정했다: 상 첨두 277.9 V, 실효 207.76 V,
+  선간 첨두 521.3 V, 실효 357.47 V, 코깅 p-p 1.29 N·m (우리 값은 모두 후처리 코드가 적은 숫자와 같은 값이다).
 이 비교는 해석기끼리의 비교다(실측이 아니다). 형상은 강의 자료 코드의 수식, 자석은 N45SH 50 °C 공칭, 강판은 JFE 35JN230 대표값 + Prius 곡선 모양.
 실행: python notebooks/14_example_motor_vs_jmag.py
 """
@@ -25,6 +26,13 @@ def read(name):
     return list(csv.DictReader(open(OUT / name)))
 
 
+def emf_waveform(sig, n, kmax=11, points=480):
+    """쇄교자속 한 주기 파형(n점)의 기전력 e = dλ/dt = −ω_e Σ k·a_k·sin(kθ + φ_k) 를 고조파 kmax차까지 합쳐 만든다."""
+    c = np.fft.rfft(sig) * 2 / n
+    th = np.linspace(0, 2 * math.pi, points, endpoint=False)
+    return -WE * sum(k * abs(c[k]) * np.sin(k * th + np.angle(c[k])) for k in range(1, kmax + 1))
+
+
 def noload_report():
     rows = read("example_motor_noload.csv")
     pos = np.array([float(r["rotor_deg"]) for r in rows])
@@ -33,21 +41,23 @@ def noload_report():
     sel = [i for i, p in enumerate(pos) if p < 90 and abs(p / 3.75 - round(p / 3.75)) < 1e-6]
     la, n = lam[sel], len(sel)
     a = np.abs(np.fft.rfft(la[:, 0])) * 2 / n
+    ea, ell = emf_waveform(la[:, 0], n), emf_waveform(la[:, 0] - la[:, 1], n)
     k = np.arange(1, 12)
     ek = WE * k * a[1:12]                                       # 기전력 고조파 (미분 = k·ω)
     ll = np.abs(np.fft.rfft(la[:, 0] - la[:, 1])) * 2 / n
-    ell = WE * k * ll[1:12]
+    ellk = WE * k * ll[1:12]
     cog = torque[pos < 7.5]
-    print("## 무부하 (자석 N45SH 50 °C 공칭)")
-    print("| 항목 | xfemm | JMAG |")
-    print("|---|---|---|")
-    print(f"| 상 쇄교자속 기본파 ψm [Wb] | {a[1]:.4f} | - |")
-    print(f"| 상 역기전력 기본파 첨두 / 실효 [V] | {WE * a[1]:.1f} / {WE * a[1] / math.sqrt(2):.1f} | 277.96 / 207.76 중 하나씩 |")
-    print(f"| 상 역기전력 실효(11차까지 전체) [V] | {math.sqrt(np.sum(ek ** 2) / 2):.1f} | 207.76 (괄호) |")
-    print(f"| 상 역기전력 THD [%] | {100 * math.sqrt(np.sum(ek[1:] ** 2)) / ek[0]:.2f} | 15.10 |")
-    print(f"| 선간 역기전력 기본파 실효 [V] | {WE * ll[1] / math.sqrt(2):.1f} | 357.47 (괄호) |")
-    print(f"| 선간 역기전력 THD [%] | {100 * math.sqrt(np.sum(ell[1:] ** 2)) / ell[0]:.2f} | 9.63 |")
-    print(f"| 코깅 토크 p-p [N·m] ({len(cog)}점) | {cog.max() - cog.min():.2f} | 1.29 |")
+    rms = lambda x: math.sqrt(float(np.mean(x ** 2)))
+    print("## 무부하 (자석 N45SH 50 °C 공칭, 고조파 11차까지)")
+    print("| 항목 | xfemm | JMAG | 차이 |")
+    print("|---|---|---|---|")
+    print(f"| 상 쇄교자속 기본파 ψm [Wb] | {a[1]:.4f} | - | - |")
+    for name, ours, ref in (("상 역기전력 첨두 [V]", np.max(np.abs(ea)), 277.96), ("상 역기전력 실효 [V]", rms(ea), 207.76),
+                            ("선간 역기전력 첨두 [V]", np.max(np.abs(ell)), 521.39), ("선간 역기전력 실효 [V]", rms(ell), 357.47)):
+        print(f"| {name} | {ours:.1f} | {ref} | {100 * (ours / ref - 1):+.1f} % |")
+    print(f"| 상 역기전력 THD [%] | {100 * math.sqrt(np.sum(ek[1:] ** 2)) / ek[0]:.2f} | 15.10 | {100 * (100 * math.sqrt(np.sum(ek[1:] ** 2)) / ek[0] / 15.10 - 1):+.1f} % |")
+    print(f"| 선간 역기전력 THD [%] | {100 * math.sqrt(np.sum(ellk[1:] ** 2)) / ellk[0]:.2f} | 9.63 | {100 * (100 * math.sqrt(np.sum(ellk[1:] ** 2)) / ellk[0] / 9.63 - 1):+.1f} % |")
+    print(f"| 코깅 토크 p-p [N·m] ({len(cog)}점) | {cog.max() - cog.min():.2f} | 1.29 | {100 * ((cog.max() - cog.min()) / 1.29 - 1):+.0f} % |")
     print("고조파(상 쇄교자속, k = 3, 5, 7, 9, 11) [mWb]: " + ", ".join(f"{a[j] * 1000:.2f}" for j in (3, 5, 7, 9, 11)))
 
 

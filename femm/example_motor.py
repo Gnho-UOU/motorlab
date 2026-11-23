@@ -220,7 +220,11 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, br_T: float, 
     if len(rows) != 1:
         raise RuntimeError(f"풀리지 않았다 (rotor {rotor_deg}°)\n{out.stdout[-1200:]}\n{out.stderr[-600:]}")
     v = [float(x) for x in rows[0][1:]]
-    return {"torque_Nm": v[0], "lambda_abc_Wb": np.array(v[1:4]), "nodes": v[4], "elements": v[5]}
+    res = {"torque_Nm": v[0], "lambda_abc_Wb": np.array(v[1:4]), "nodes": v[4], "elements": v[5]}
+    if probes:
+        bp = np.array([[float(x) for x in l.split()[1:]] for l in out.stdout.splitlines() if l.startswith("BP ")])
+        res["B_xy_T"], res["A_Wb_per_m"] = bp[:, :2], bp[:, 2]
+    return res
 
 
 def plot(path: str, rotor_deg: float = 0.0) -> None:

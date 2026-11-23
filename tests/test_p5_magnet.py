@@ -115,8 +115,9 @@ def test_armature_demag_is_linear_in_negative_id():
         demag_coupling(100.0, 200.0, 10.0)
 
 
-def test_demag_coupling_from_prius_fea_is_grade_and_temperature_independent():
-    """femm/demag_check.py 결과(xfemm, Prius 형상): 같은 형상에서 κ는 소재·온도와 상관없이 ±5% 안에서 같다."""
+def test_demag_coupling_from_prius_fea_is_temperature_independent_for_ndfeb_but_not_ferrite():
+    """femm/demag_check.py 결과(xfemm, Prius 형상): κ는 NdFeB(μr ≈ 1.04) 두 등급·여러 온도에서 ±5% 안에서 같다. 페라이트(μr 1.10, Br 0.4 T)는
+    자석 투자율과 철심 포화가 달라서 κ가 약 15% 작다(그래서 NdFeB의 κ를 페라이트에 쓰면 감자를 과대 예측한다)."""
     import csv
     rows = list(csv.DictReader(open(ROOT / "data" / "fea" / "prius2004_demag_check.csv")))
     for r in rows:
@@ -124,10 +125,12 @@ def test_demag_coupling_from_prius_fea_is_grade_and_temperature_independent():
             if k not in ("grade", "state"):
                 r[k] = float(r[k])
     by = {(r["grade"], r["T_C"], r["state"]): r for r in rows}
-    kappas = [demag_coupling(by[(r["grade"], r["T_C"], "noload")]["H_demag_mean_kApm"], r["H_demag_mean_kApm"], r["id_A"])
-              for r in rows if r["state"] == "d_axis_250"]
+    kap = lambda r: demag_coupling(by[(r["grade"], r["T_C"], "noload")]["H_demag_mean_kApm"], r["H_demag_mean_kApm"], r["id_A"])
+    kappas = [kap(r) for r in rows if r["state"] == "d_axis_250" and r["grade"] in ("N45SH", "N38UH")]
     assert len(kappas) >= 6
     assert max(kappas) / min(kappas) < 1.05
+    ferrite = [kap(r) for r in rows if r["state"] == "d_axis_250" and r["grade"] == "F33"]
+    assert len(ferrite) >= 3 and max(ferrite) < 0.9 * min(kappas)
     # κ를 한 점(N45SH 20 °C, 순수 d축)에서 구해 id와 iq가 함께 있는 MTPA 250 A 점의 평균 자계를 예측하면 5% 안
     k = demag_coupling(by[("N45SH", 20.0, "noload")]["H_demag_mean_kApm"], by[("N45SH", 20.0, "d_axis_250")]["H_demag_mean_kApm"], -250.0)
     m = by[("N45SH", 20.0, "mtpa250")]

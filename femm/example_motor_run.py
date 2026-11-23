@@ -3,7 +3,7 @@
 비교 대상(강의 자료 슬라이드의 JMAG 결과, 4300 rpm, 상전류 첨두 330 A):
   무부하: 상 역기전력 첨두 277.96 V·실효 207.76 V, THD 15.10 %, 선간 첨두 521.39 V·실효 357.47 V, THD 9.63 %, 코깅 토크 1.29 N·m (p-p)
   부하  : 평균 토크 350.64 N·m, 토크 리플 8.22 %, 단자 전압 첨두 385.75 V, 상전류 실효 233.35 A, 동손 5397 W, 철손 751 W, 효율 96.25 %
-  (역기전력 두 값의 앞뒤 해석: 후처리 코드는 'rms'로 적지만 첨두/실효로 보이는 값 쌍이다. 비율이 정현파에 맞지 않아 이 파일은 둘 다 보인다)
+  (역기전력의 두 숫자는 앞 = 파형 첨두, 괄호 = 실효: 슬라이드 그림의 파형 121점으로 확정했다)
   JMAG 설정: 자석 N45SH(Arnold, reversible) 온도 50 °C 고정, 강판 35JN230, 적층률 97 %, 적층 153 mm, 상저항 0.033 Ω @50 °C.
 
 방법: 전체 모터 FEA. 무부하는 회전자 위치 24점(3.75° 간격, 한 전기 주기 = 기계각 90°)의 쇄교자속으로 기본파와 고조파를, 코깅은 한 슬롯 피치(7.5°)를 12점으로 본다.
@@ -125,5 +125,20 @@ def cogging_mesh() -> None:
     print("cogging mesh done", len(jobs))
 
 
+def cogging_sens() -> None:
+    """코깅 토크의 입력 민감도: 강판 곡선(Prius M400 대 JFE 혼합)과 자석 Br(최소 대 공칭)을 바꿔 한 슬롯 피치를 12점으로 푼다(기본 메시)."""
+    pos = [float(x) for x in np.arange(0.0, 7.5, 0.625)]
+    names = ("m400", "brmin")
+    jobs = [(v, r) for v in names for r in pos]
+    with ThreadPoolExecutor(max_workers=JOBS) as ex:
+        res = list(ex.map(lambda j: em.solve_one((0.0, 0.0, 0.0), j[1], *VARIANTS[j[0]]), jobs))
+    with open(OUT / "example_motor_cogging_sens.csv", "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["variant", "rotor_deg", "torque_Nm"])
+        for (v, r), x in zip(jobs, res):
+            w.writerow([v, r, f"{x['torque_Nm']:.4f}"])
+    print("cogging sens done", len(jobs))
+
+
 if __name__ == "__main__":
-    {"noload": noload, "loaded": loaded, "ripple": ripple, "cogging_mesh": cogging_mesh}[sys.argv[1]]()
+    {"noload": noload, "loaded": loaded, "ripple": ripple, "cogging_mesh": cogging_mesh, "cogging_sens": cogging_sens}[sys.argv[1]]()

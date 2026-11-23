@@ -151,3 +151,10 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 ## 6. 남은 결정 (구현 중 사용자와 확인)
 - 철손을 토크에 반영할지(등가 철손 저항 모델) — P2 검증 오차를 본 뒤 결정
 - FluxMapModel 격자 해상도와 회전자 위치 평균 방식 — P3에서 FEMM 계산 시간과 함께 결정
+
+## 5-3. 전자강판 철손 (`steel.py`, 구현됨)
+
+- `load_steel(name) -> SteelLoss`: `data/materials/steel_<name>.json`의 카탈로그 값(두께, 비저항, 밀도, W10/50, W15/50)에서 `k_e = π²d²/(6ρ_eρ_m)`(고전 와전류), `α`, `k_h`를 구한다. `loss_density(f, B)` [W/kg]는 `k_h·f·B^α + k_e·(f·B)²`.
+- `loss_from_waveform(bx, by, f1)`: 한 주기 B 파형의 성분(Bx, By)별 푸리에 분해, 고조파마다 `loss_density(k·f1, 진폭)`을 더한다(직류 제외).
+- 60 Hz 두 점은 맞추는 데 쓰지 않고 1% 안에서 예측한다. 이상 손실·소형 루프 보정 없음, 수백 Hz 이상은 외삽. 테스트 `tests/test_p5_steel.py`. 기존 `losses.py`의 `iron_loss`(ψ 비례 집중 모델)와 별개다.
+

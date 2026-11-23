@@ -34,6 +34,7 @@ for r in rows:
 
 print("\n## 2) 1단계 어림 대 FEA (자석 평균 자계): H = H0 + κ·(−id)")
 print("κ는 N45SH 20 °C의 순수 d축(−250 A) 한 점에서만 구하고, 나머지 모든 점을 그 κ로 예측한다(소재·온도·iq가 섞인 점은 검증용).")
+print("(페라이트 F33은 μr 1.10, Br 0.4 T라 κ가 NdFeB보다 약 15% 작아 이 κ로는 15~28% 과대 예측한다. 감자 판정은 FEA 값을 쓴다.)")
 n0 = by[("N45SH", 20.0, "noload")]
 kappa = demag_coupling(n0["H_demag_mean_kApm"], by[("N45SH", 20.0, "d_axis_250")]["H_demag_mean_kApm"], -250.0)
 print(f"κ = {kappa:.3f} kA/m per A")
