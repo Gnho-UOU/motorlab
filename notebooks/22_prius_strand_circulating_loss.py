@@ -58,6 +58,13 @@ def main() -> None:
                             ("일관된 편차, 번들 1 mm", 72, 0.3e-3), ("일관된 편차, 번들 4 mm", 72, 1.15e-3)):
         k = 3 * N_STRAND * (kappa * 4 * math.pi * beta * STACK * d) ** 2 / Rstrand * 2
         print(f"| {label} | {kappa:.1f} | {d * 1e3:.2f} | {kappa * d * 1e3:.1f} | {k:.2e} | {k / kc:.2f} |")
+    # 소선 자체의 근접 효과(표피·근접): 가는 소선(0.912 mm)이 횡방향 자계 B 안에 있을 때 단위 길이 손실 P' = π·ω²·B_pk²·d⁴/(128·ρ) (원형 도체, 저주파 근사)
+    rho_hot = 1.73e-8 * (1 + 0.00393 * (100 - 20))
+    f_el = 400.0
+    B_pk = beta * 105.0                                  # 측정 전류 I_rms ≈ 75 A(첨두 105 A)의 평균 슬롯 자속밀도
+    p_len = math.pi * (2 * math.pi * f_el) ** 2 * B_pk ** 2 * (0.912e-3) ** 4 / (128 * rho_hot)
+    total = p_len * 117 * 48 * STACK
+    print(f"\n소선 근접 손실 어림 (f = 400 Hz, I_pk 105 A, B = {B_pk * 1e3:.0f} mT, 슬롯 속 소선 117가닥 × 48슬롯 × {STACK * 1e3:.1f} mm): {total:.0f} W (잔여 손실 1.3~2.5 kW의 1% 안팎)")
     f60 = 60.0
     print(f"\n같은 k_c로 60 Hz, I_rms 60~80 A: {kc * 60 ** 2 * f60 ** 2:.0f}~{kc * 80 ** 2 * f60 ** 2:.0f} W (정현파 시험 허용 오차 ±100 W 안)")
 
