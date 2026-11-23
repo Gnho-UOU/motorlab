@@ -35,7 +35,7 @@ EV 구동용 매입형 영구자석 동기전동기(IPMSM)를 "설계 변수 →
 
 (a) 잠금 토크와 (b) 공극 자속밀도는 FEA가 ORNL 실측과 맞고, (c) 효율과 (d) 필요 전류는 저속에서는 맞지만 고속에서 물리 모델이 실측과 **맞지 않는다**(G1 미달). 교정에 쓴 값은 자석 Br 1.06 T 하나이다. 그림은 `python notebooks/11_validation_figures.py`로 다시 만든다. 한계와 원인 탐색은 `docs/validation_report.md`, 컨택용 2쪽 요약은 [docs/summary.pdf](docs/summary.pdf)(원본 `docs/summary.html`).
 
-테스트: `.venv/bin/python -m pytest` → 194개 통과(엔진 코어, 손실, 전비, API, 파형, 자석 M5, 강판 철손, 예제 모터, 설계 최적화 M6, 열 모델 M7, 권선 전환 M8).
+테스트: `.venv/bin/python -m pytest` → 199개 통과(엔진 코어, 손실, 전비, API, 파형, 자석 M5, 강판 철손, 예제 모터, 설계 최적화 M6, 열 모델 M7, 권선 전환 M8, API 확장).
 
 - 기획서: `docs/PLAN.pdf`
 - 엔진 설계서: `docs/ENGINE_SPEC.md`
@@ -46,6 +46,7 @@ EV 구동용 매입형 영구자석 동기전동기(IPMSM)를 "설계 변수 →
 - 연구실 예제 모터 대 JMAG 비교(해석기끼리): `femm/example_motor.py`, `notebooks/14_example_motor_vs_jmag.py`(역기전력·토크·전압), `notebooks/15_example_motor_iron_loss.py`(철손·효율)
 - 설계 최적화(M6): `engine/optimize.py`, FEA 평가기 `femm/design_opt_run.py`, 표 `data/fea/design_opt_evals.csv`, 결과 `notebooks/16_example_motor_pareto.py`
 - 열 모델(M7): `engine/thermal.py`, 자료·보정 `data/thermal/`, 검증 `notebooks/19_prius_thermal.py`
+- API 확장(M5~M8): `api/extensions.py` — `GET /api/magnets`, `GET /api/magnet_demag`, `POST /api/thermal_cycle`, `POST /api/winding`, `GET /api/pareto` (엔진 결과만 돌려주고 한계를 응답에 싣는다, 화면 연결은 사용자 화면 검토 뒤)
 - 권선 전환(M8): `engine/winding.py`, 가정 계산 `notebooks/20_prius_winding_switch.py`
 - 전비 계산: `notebooks/10_prius_fuel_economy.py`, 차량·사이클 데이터 `data/vehicles/`, `data/cycles/`
 

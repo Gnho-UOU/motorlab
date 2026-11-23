@@ -40,7 +40,9 @@ NOTE_PHYSICAL = ("물리 모델: 동손 + 무부하 실측 손실(기계·철손
 NOTE_EMPIRICAL = ("경험식 포함: 물리 모델에 같은 ORNL 벤치마크 행에 맞춘 잔여 손실을 더했다. 이것은 물리 기구를 확인하지 않은 보정이고 "
                   "시험 범위(500~6100 rpm) 밖에서는 의미가 없다. G1 검증 충족으로 세지 않는다.")
 
-app = FastAPI(title="Motor Lab API", version="0.1.0")
+app = FastAPI(title="Motor Lab API", version="0.2.0")
+from api.extensions import router as _p5_router  # noqa: E402  (자석·열·권선 전환·파레토)
+app.include_router(_p5_router)
 app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"], allow_methods=["*"], allow_headers=["*"])
 
 
