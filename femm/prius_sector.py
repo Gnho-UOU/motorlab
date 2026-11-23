@@ -208,7 +208,7 @@ def lua_model(g: dict, sec: Sector, filename: str = "prius.fem") -> str:
          'mi_addmaterial("Air", 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0)',
          'mi_addmaterial("Cu", 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0)',
          f'mi_addmaterial("Magnet", {mag["mur"]}, {mag["mur"]}, {Hc:.9g}, 0, 0, 0, 0, 1, 0, 0, 0)',
-         'mi_addmaterial("Steel", 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0)', 'mi_addbhpoint("Steel", 0, 0)']
+         f'mi_addmaterial("Steel", 1, 1, 0, 0, 0, 0, 0, {g["steel"].get("lam_fill", 1)}, 0, 0, 0)', 'mi_addbhpoint("Steel", 0, 0)']   # 9번째 인자 = 적층률(기본 1)
     L += [f'mi_addbhpoint("Steel", {B:.9g}, {H:.9g})' for H, B in g["steel"]["BH_H_Apm_B_T"][1:]]
     L += [f'mi_addcircprop("{c}", 0, 1)' for c in "ABC"]
     bc, age = (5, 7) if sec.antiperiodic else (4, 6)      # BdryFormat: 4 주기, 5 반대칭, 6 주기 AGE, 7 반대칭 AGE

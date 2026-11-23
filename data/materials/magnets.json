@@ -146,21 +146,22 @@
    },
    "alpha_Br_pct_per_C": {
     "value": -0.2,
-    "source": "Arnold TECHNote TN 0205 rev.2015a: 페라이트의 유도(Br) 온도계수 -0.2 %/°C (등급 구분 없는 일반 값)"
+    "source": "Eclipse Magnetics 'Ferrite Magnets/Ceramic Magnets Datasheet' (https://www.eclipsemagnetics.com/site/assets/files/19602/ferrite_ceramic_datasheet.pdf) 온도계수 표: 가역 온도계수 α(Br) −0.2 %/°C (등급 구분 없는 페라이트 일반 값). Arnold TN 0205도 −0.2"
    },
    "alpha_HcJ_pct_per_C": {
-    "value": null,
-    "source": "찾지 못함. 페라이트는 보자력 온도 특성이 NdFeB와 반대여서 저온 감자 검토에 필요한 값이다. 등급별 인도 사양서가 필요하다(TDK 사이트는 자동 접근 403) 같은 계열의 다른 제조사 등급 F33(Goudsmit)은 +0.40 %/°C이며 감자 판정은 F33으로 한다."
+    "value": 0.27,
+    "source": "Eclipse Magnetics 'Ferrite Magnets/Ceramic Magnets Datasheet' (https://www.eclipsemagnetics.com/site/assets/files/19602/ferrite_ceramic_datasheet.pdf) 온도계수 표: 가역 온도계수 β(Hci) +0.27 %/°C (등급 구분 없는 일반 값; 페라이트는 온도가 오르면 Hci가 커진다). Goudsmit F33은 +0.40"
    },
    "Curie_C": {
     "value": 450,
-    "source": "Arnold TN 0205 rev.2015a (약 450 °C)"
+    "source": "Eclipse Magnetics 'Ferrite Magnets/Ceramic Magnets Datasheet' (https://www.eclipsemagnetics.com/site/assets/files/19602/ferrite_ceramic_datasheet.pdf) 온도계수 표 (Tc 450 °C). Arnold TN 0205도 약 450 °C"
    },
    "Tmax_C": {
-    "value": null,
-    "source": "등급별 값을 찾지 못함 (Eclipse 안내문은 페라이트 일반 최고 약 250 °C)"
+    "value": 250,
+    "source": "Eclipse 같은 문서: 권장 최고 사용 온도 +250~+300 °C (등급·형상 일반 값). 최저 사용 온도는 형상·자기회로에 따라 −60~0 °C"
    },
-   "demag_curves": false
+   "demag_curves": false,
+   "curve_note": "Y30H-1의 감자 곡선은 찾지 못했다(Eclipse·ChenYang 문서는 대표값 표만 있고, ChenYang의 곡선 그림은 Y10·Y25·Y30·Y33·Y30BH·Y35뿐이며 래스터). 감자 판정은 같은 계열의 Goudsmit F33(제조사 추정 곡선)로 한다."
   },
   "F33": {
    "family": "소결 페라이트 (이방성)",

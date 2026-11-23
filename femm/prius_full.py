@@ -116,7 +116,8 @@ def _driver(i_abc: tuple[float, float, float], fem: str, probes: list[complex] |
 
 def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | None = None,
               femmcli: str | None = None, timeout: int = 3600, br_T: float | None = None,
-              probes: list[complex] | None = None, mur: float | None = None) -> dict:
+              probes: list[complex] | None = None, mur: float | None = None, steel_bh: list | None = None,
+              lam_fill: float | None = None) -> dict:
     """모델을 만들어 저장 -> .fem에 [DoSmartMesh] = 0 삽입 -> 다시 열어 푼다.
 
     xfemm의 Lua에는 smartmesh 명령이 없고(주석 처리됨) 기본값이 켜짐이다. 스마트 메시는 가까운 꼭짓점 간격에 맞춰 요소를 잘게
@@ -128,6 +129,10 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | 
         g["magnet"]["Br20_T"] = br_T
     if mur is not None:                        # 자석 회복 비투자율을 덮어쓴다(M5: 소재별 μr)
         g["magnet"]["mur"] = mur
+    if steel_bh is not None:                   # 입력 민감도: 강판 B-H 곡선 [[H A/m, B T], ...]
+        g["steel"]["BH_H_Apm_B_T"] = steel_bh
+    if lam_fill is not None:                   # 입력 민감도: 적층률
+        g["steel"]["lam_fill"] = lam_fill
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
         (d / "build.lua").write_text(lua_model(g, build_full(g, mesh, rotor_deg), "m.fem"))

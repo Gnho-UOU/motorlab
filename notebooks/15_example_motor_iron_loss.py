@@ -35,9 +35,9 @@ def region_loss(steel, bx, by, weights_m2, mult):
     return total
 
 
-def compute():
+def compute(npz="example_motor_iron_probes.npz"):
     """영역별 철손 [W]의 dict, 합계, 평균 토크, 출력, 동손, 효율 [%], 점 가중 질량(고정자·회전자) 를 돌려준다."""
-    d = np.load(ROOT / "data" / "fea" / "example_motor_iron_probes.npz")
+    d = np.load(ROOT / "data" / "fea" / npz)
     steel = load_steel("35JN230")
     pos = np.radians(d["positions_deg"])
     B = d["B_xy_T"].astype(float)

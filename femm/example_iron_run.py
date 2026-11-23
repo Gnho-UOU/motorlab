@@ -26,10 +26,15 @@ import example_motor_run as run  # noqa: E402
 import prius_run as pr  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "data" / "fea" / "example_motor_iron_probes.npz"
 BETA_DEG = 41.0
 N_POS = 60
-MESH = {"stator": 2.0e-3, "rotor": 1.4e-3, "magnet": 1.4e-3, "slot": 3.0e-3, "gap": 0.3e-3}
+MESHES = {"medium": {"stator": 2.0e-3, "rotor": 1.4e-3, "magnet": 1.4e-3, "slot": 3.0e-3, "gap": 0.3e-3},
+          "fine": {"stator": 1.4e-3, "rotor": 1.0e-3, "magnet": 1.0e-3, "slot": 2.5e-3, "gap": 0.2e-3, "arc_deg": 0.25}}
+MESH_NAME = os.environ.get("IRON_MESH", "medium")        # 메시 민감도: medium(기본) 또는 fine
+DENS = int(os.environ.get("IRON_DENSITY", "1"))           # 점 밀도 배수: 1(기본) 또는 2 (반지름·각도 점 수를 두 배)
+MESH = MESHES[MESH_NAME]
+OUT = ROOT / "data" / "fea" / ("example_motor_iron_probes.npz" if (MESH_NAME, DENS) == ("medium", 1)
+                               else f"example_motor_iron_probes_{MESH_NAME}_d{DENS}.npz")
 MM = 1e-3
 
 
@@ -37,25 +42,29 @@ def stator_points():
     """(좌표 [m], 면적 가중치 [m²], 영역 이름 배열). 영역: 0 치, 1 슈, 2 요크."""
     pts, area, reg = [], [], []
     pitch = math.radians(7.5)
-    dr = 3.0
+    n_rad, n_w = 6 * DENS, 3 if DENS == 1 else 5
+    dr = 18.0 / n_rad
     for j in range(12):
         c = j * pitch
         u, v = complex(math.cos(c), math.sin(c)), complex(-math.sin(c), math.cos(c))
-        for k in range(6):
+        for k in range(n_rad):
             r = 68.0 + dr * (k + 0.5)
-            for off in (-5.8 / 3, 0.0, 5.8 / 3):
+            for i in range(n_w):
+                off = -2.9 + 5.8 * (i + 0.5) / n_w
                 pts.append((r * u + off * v) * MM)
-                area.append((5.8 / 3) * dr * MM * MM)
+                area.append((5.8 / n_w) * dr * MM * MM)
                 reg.append(0)
-        for off in (-2.9, 0.0, 2.9):                                           # 슈: 치 중심선 기준 가로 3점
+        for i in range(n_w):                                                    # 슈: 치 중심선 기준 가로 n_w점
+            off = -2.9 + 5.8 * (i + 0.5) / n_w
             pts.append((67.4 * u + off * v) * MM)
-            area.append(8.7 / 3 * MM * MM)
+            area.append(8.7 / n_w * MM * MM)
             reg.append(1)
-    r_edges = np.linspace(87.5, 100.0, 4)
-    dphi = math.radians(90.0 / 24)
+    r_edges = np.linspace(87.5, 100.0, 3 * DENS + 1)
+    n_phi = 24 * DENS
+    dphi = math.radians(90.0 / n_phi)
     for a, b in zip(r_edges[:-1], r_edges[1:]):
         r = 0.5 * (a + b)
-        for i in range(24):
+        for i in range(n_phi):
             phi = (i + 0.5) * dphi
             pts.append(r * complex(math.cos(phi), math.sin(phi)) * MM)
             area.append(0.5 * (b * b - a * a) * dphi * MM * MM)
@@ -71,7 +80,9 @@ def rotor_points_local():
     hole2 = up + [p.conjugate() for p in reversed(up)]
     polys = [MPath([(p.real, p.imag) for p in h]) for h in (hole1, [p.conjugate() for p in hole1], hole2)]
     r_edges = np.array([25.0, 31.0, 38.0, 46.0, 54.0, 60.0, 63.0, 64.5, 66.0])
-    n_ang = 24
+    if DENS > 1:                                                                # 각 구간을 DENS등분
+        r_edges = np.concatenate([np.linspace(a, b, DENS, endpoint=False) for a, b in zip(r_edges[:-1], r_edges[1:])] + [[66.0]])
+    n_ang = 24 * DENS
     dphi = math.radians(45.0 / n_ang)
     pts, area = [], []
     for a, b in zip(r_edges[:-1], r_edges[1:]):

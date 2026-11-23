@@ -123,3 +123,23 @@ def test_iron_loss_and_efficiency_against_jmag():
     assert abs(eff - 96.25) < 0.5
     assert copper == pytest.approx(5397.15, rel=0.01)
     assert 12 < mass[0] < 20 and 8 < mass[1] < 14                     # 고정자·회전자 철심 질량 [kg] (점 가중)
+
+
+def test_lamination_factor_reaches_the_fea_model():
+    """강의 자료의 적층률 97 %가 FEA 재질에 실제로 들어가야 한다(처음에는 빠져 있었다). Prius 모델은 기본값 1을 유지한다."""
+    import prius_sector as ps
+    text = ps.lua_model(em.model_dict(1.3, 1.04, "jfe"), em.build(0.0), "m.fem")
+    assert 'mi_addmaterial("Steel", 1, 1, 0, 0, 0, 0, 0, 0.97, 0, 0, 0)' in text
+    g = ps.load_geometry()
+    assert 'mi_addmaterial("Steel", 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0)' in ps.lua_model(g, ps.build_sector(g), "p.fem")
+
+
+def test_geometry_validity_checks_for_design_variables():
+    webs = em.rotor_webs_mm()
+    assert webs["center_post"] == pytest.approx(2.0)                         # 센터포스트 1 mm × 2
+    assert webs["hole1_hole2"] == pytest.approx(3.33, abs=0.02) and webs["q_axis"] == pytest.approx(3.48, abs=0.02)
+    assert em.geometry_ok() == (True, "ok")
+    for key, val in (("m_length_1", 30.0), ("m_theta_1", 60.0), ("m_length_2", 20.0)):
+        ok, why = em.geometry_ok({**em.P, key: val})
+        assert not ok and why
+    assert em.polygon_distance([0j, 1 + 0j, 1 + 1j, 1j], [3 + 0j, 4 + 0j, 4 + 1j, 3 + 1j]) == pytest.approx(2.0)

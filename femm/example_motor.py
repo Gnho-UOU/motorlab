@@ -204,12 +204,15 @@ def build(rotor_deg: float = 0.0, mesh: dict | None = None, p: dict = P) -> Sect
 
 
 def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, br_T: float, mur: float, steel: str = "jfe",
-              mesh: dict | None = None, femmcli: str | None = None, timeout: int = 3600, probes: list[complex] | None = None) -> dict:
+              mesh: dict | None = None, femmcli: str | None = None, timeout: int = 3600, probes: list[complex] | None = None,
+              p: dict | None = None) -> dict:
+    """p: 설계 변수를 덮어쓴 형상 딕셔너리(기본 P). M6 최적화가 쓴다."""
     femmcli = femmcli or os.environ.get("FEMMCLI", "femmcli")
-    g = model_dict(br_T, mur, steel)
+    p = P if p is None else p
+    g = model_dict(br_T, mur, steel, p)
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
-        (d / "build.lua").write_text(lua_model(g, build(rotor_deg, mesh), "m.fem"))
+        (d / "build.lua").write_text(lua_model(g, build(rotor_deg, mesh, p), "m.fem"))
         subprocess.run([femmcli, "-q", "--lua-script=build.lua"], cwd=d, capture_output=True, text=True, timeout=timeout, check=True)
         lines = (d / "m.fem").read_text().splitlines()
         lines.insert(1, "[DoSmartMesh] = 0")
@@ -249,3 +252,62 @@ def plot(path: str, rotor_deg: float = 0.0) -> None:
         ax.plot(lab.pos.real, lab.pos.imag, ".", color=colors.get(lab.material, "g"), ms=5)
     ax.set_aspect("equal")
     fig.savefig(path, dpi=110)
+
+
+# ---- 설계 변수 형상의 타당성 검사 (M6 최적화가 쓴다) ----
+def _seg_dist(a: complex, b: complex, c: complex, d: complex) -> float:
+    """두 선분 ab, cd 사이의 최소 거리 (교차하면 0)."""
+    cross = lambda u, v: u.real * v.imag - u.imag * v.real
+    r, s = b - a, d - c
+    den = cross(r, s)
+    if abs(den) > 1e-12:
+        t, u = cross(c - a, s) / den, cross(c - a, r) / den
+        if 0 <= t <= 1 and 0 <= u <= 1:
+            return 0.0
+
+    def point_seg(p, q1, q2):
+        ab = q2 - q1
+        if abs(ab) < 1e-12:
+            return abs(p - q1)
+        t = max(0.0, min(1.0, ((p - q1) * ab.conjugate()).real / abs(ab) ** 2))
+        return abs(p - (q1 + t * ab))
+    return min(point_seg(a, c, d), point_seg(b, c, d), point_seg(c, a, b), point_seg(d, a, b))
+
+
+def polygon_distance(A: list, B: list) -> float:
+    """두 다각형(꼭짓점 목록, 닫힘 가정)의 변 사이 최소 거리 [단위는 입력과 같다]. 한 다각형이 다른 쪽을 완전히 품는 경우는 따로 보지 않는다."""
+    ea = [(A[i], A[(i + 1) % len(A)]) for i in range(len(A))]
+    eb = [(B[i], B[(i + 1) % len(B)]) for i in range(len(B))]
+    return min(_seg_dist(a, b, c, d) for a, b in ea for c, d in eb)
+
+
+def rotor_webs_mm(p: dict = P) -> dict:
+    """회전자 철 웹(구멍 사이 철의 최소 폭) [mm]: 구멍 1-구멍 2, 구멍 1 위·아래(센터포스트), 이웃 극 구멍 1끼리(q축 철), 구멍 1과 축 구멍."""
+    z = rotor_points(p)
+    h1 = [z[f"Z{k}"] for k in (1, 2, 3, 4, 5, 17, 6, 7, 8)]
+    up = [z[f"Z{k}"] for k in (12, 13, 14, 15, 9, 10, 11)]
+    h2 = up + [q.conjugate() for q in reversed(up)]
+    cj = lambda poly: [q.conjugate() for q in poly]
+    rt = lambda poly, deg: [q * cmath.exp(1j * math.radians(deg)) for q in poly]
+    return {"hole1_hole2": polygon_distance(h1, h2), "center_post": polygon_distance(h1, cj(h1)),
+            "q_axis": polygon_distance(h1, rt(cj(h1), 360.0 / p["poles"])),
+            "hole1_shaft": min(abs(q) for q in h1) - p["rotor_inner"]}
+
+
+def geometry_ok(p: dict = P, min_web_mm: float = 1.5) -> tuple[bool, str]:
+    """설계 변수 형상이 만들 수 있는지: 구멍의 점 순서와 위치가 맞고(자석 끝이 센터포스트 선 위), 철 웹이 min_web_mm 이상이다.
+    min_web_mm = 1.5는 설계 가정이다: 기준 설계의 철 웹(센터포스트 2.0, 구멍 사이 3.3, q축 3.5 mm)의 절반 안팎. 기계적 응력은 계산하지 않는다."""
+    z = rotor_points(p)
+    if z["Z3"].imag < p["centerpost_1"] + 1e-9:
+        return False, "자석 1의 안쪽 끝이 센터포스트 선 아래"
+    if z["Z17"].imag < p["centerpost_1"] + 1e-9 or z["Z6"].imag < z["Z17"].imag:
+        return False, "구멍 1의 안쪽 끝 점 순서가 맞지 않음"
+    if z["Z9"].real <= z["Z12"].real or z["Z15"].imag <= z["Z14"].imag:
+        return False, "구멍 2 점 순서가 맞지 않음"
+    if cmath.phase(z["Z8"]) >= math.radians(180.0 / p["poles"]):
+        return False, "구멍 1 바깥 끝이 극 경계를 넘음"
+    for name, v in rotor_webs_mm(p).items():
+        floor = 3.0 if name == "hole1_shaft" else min_web_mm
+        if v < floor:
+            return False, f"철 웹 {name} = {v:.2f} mm < {floor} mm"
+    return True, "ok"

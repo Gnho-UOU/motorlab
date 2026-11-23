@@ -158,3 +158,16 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `loss_from_waveform(bx, by, f1)`: 한 주기 B 파형의 성분(Bx, By)별 푸리에 분해, 고조파마다 `loss_density(k·f1, 진폭)`을 더한다(직류 제외).
 - 60 Hz 두 점은 맞추는 데 쓰지 않고 1% 안에서 예측한다. 이상 손실·소형 루프 보정 없음, 수백 Hz 이상은 외삽. 테스트 `tests/test_p5_steel.py`. 기존 `losses.py`의 `iron_loss`(ψ 비례 집중 모델)와 별개다.
 
+
+
+## 5-4. M6: 설계 최적화 (`optimize.py`, 구현됨; FEA 평가기는 `femm/design_opt_run.py`)
+
+- 엔진은 FEA를 부르지 않는다(CLAUDE.md). 비싼 평가(설계 하나당 xfemm 13점)는 `femm/design_opt_run.py`가 `data/fea/design_opt_evals.csv`에 쌓고, `engine/optimize.py`는 그 표로 대리모델을 만들어 다음 후보를 고른다.
+- 규약: 목적은 모두 최소화(최대화할 양은 부호를 바꿔 넘김), 제약은 `g ≤ 0`이 만족. `pymoo`와 `scikit-learn`은 선택 의존성(`pip install -e ".[opt]"`).
+- `DesignSpace(names, lower, upper)`: `scale`([0,1]^d → 실제), `unscale`. 상한이 하한보다 크지 않으면 `ValueError`.
+- `latin_hypercube(n, d, seed)`: 변수마다 [0,1]을 n등분한 칸에 하나씩 들어가는 표본(SciPy `qmc`).
+- `pareto_mask(F)`: 최소화 비지배 점. `hypervolume_2d(F, ref)`: 두 목적의 초체적(기준점 밖의 점은 무시). `select_diverse(F, k)`: 목적별 최소점(양 끝)을 먼저 넣고 가장 먼 점을 하나씩 더함(0~1 정규화).
+- `GPSurrogate().fit(X, y)`, `.predict(X) -> (평균, 표준편차)`, `.loo_rmse()`: 커널 = 상수 × Matern(ν = 5/2, 변수별 길이 척도) + 백색 잡음, 출력 표준화. LOO(하나 빼고 예측한 오차)는 닫힌 식 `r_i = [K⁻¹y]_i / [K⁻¹]_ii`.
+- `run_nsga2(model, space, pop, gens, seed)`: `model(X) -> (F, G)`를 NSGA-II(pymoo)로 풀어 비지배 해 `(X, F, G)`를 돌려준다. 같은 seed면 같은 결과.
+- 평가기(예제 모터): 설계 변수 5개(V자 자석 두께·길이·각, 평평한 자석 두께·반길이), 목적 = 토크 최대(β를 최적화한 평균 토크 T*) · 자석 면적 최소, 제약 = 단자 전압 ≤ (2/π)·680 = 433 V, 150 °C N45SH 감자 여유 ≥ 0.05, 형상 타당성(`example_motor.geometry_ok`: 철 웹 ≥ 1.5 mm, 자석 겹침 없음). 후보는 대리모델 예측에 표준편차 한 개만큼 불리하게 제약을 적용해 고르고, 파레토 해는 FEA로 직접 평가한 설계에서만 뽑는다.
+- 테스트: `tests/test_p5_optimize.py`(설계 공간, 라틴 하이퍼큐브, 파레토·초체적, GP 보간과 LOO, NSGA-II 재현성·알려진 파레토 전선), `tests/test_design_opt.py`(포물선 꼭짓점, 자석 면적, 감자 프로브 위치, 타당한 표본).

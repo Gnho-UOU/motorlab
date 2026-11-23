@@ -9,6 +9,7 @@ dependencies = ["numpy", "scipy"]
 [project.optional-dependencies]
 dev = ["pytest", "matplotlib", "jupyter", "nbconvert", "ipykernel"]
 api = ["fastapi", "uvicorn", "httpx"]   # api/ (엔진 의존성이 아니다)
+opt = ["pymoo", "scikit-learn"]       # engine/optimize.py (M6). 계산 엔진 본체(M1~M5)는 필요 없다
 
 [build-system]
 requires = ["setuptools>=68"]

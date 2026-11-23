@@ -137,12 +137,16 @@ def test_demag_coupling_from_prius_fea_is_temperature_independent_for_ndfeb_but_
     assert field_after_armature(by[("N45SH", 20.0, "noload")]["H_demag_mean_kApm"], k, m["id_A"]) == pytest.approx(m["H_demag_mean_kApm"], rel=0.05)
 
 
-def test_ferrite_has_properties_but_no_unsourced_demag_check():
+def test_ferrite_y30h1_has_sourced_coefficients_but_no_curve_so_no_demag_check():
+    """Y30H-1은 온도계수(Eclipse 표)는 있지만 감자 곡선이 없어 판정하지 않는다. 곡선이 있는 페라이트 F33(Goudsmit, 제조사 추정)은 판정한다."""
     f = load_grade("Y30H-1")
     assert f.props["alpha_Br_pct_per_C"]["value"] == pytest.approx(-0.2)
-    assert f.props["alpha_HcJ_pct_per_C"]["value"] is None           # 출처를 못 찾은 값은 비워 둔다
+    assert f.props["alpha_HcJ_pct_per_C"]["value"] == pytest.approx(0.27)       # 페라이트는 온도가 오르면 HcJ가 커진다
     with pytest.raises(NotImplementedError):
         f.hk(20.0)
+    f33 = load_grade("F33")
+    assert f33.props["alpha_HcJ_pct_per_C"]["value"] == pytest.approx(0.40) and f33.br(20.0) == pytest.approx(0.390, abs=0.003)
+    assert f33.hcj(225.0) > f33.hcj(20.0) > f33.hcj(-40.0)                      # NdFeB와 반대로 고온에서 HcJ가 커진다
 
 
 def test_unknown_grade_is_an_error():
