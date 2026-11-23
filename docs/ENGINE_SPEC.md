@@ -180,3 +180,10 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `cycle_thermal(result, params, T_b, T_start, R_map, T_map)`: `run_cycle` 결과의 구간별 전류·손실로 온도를 구하고 맵 저항과의 차이 `ΔP_cu = 1.5·(R(T_w) − R_map)·I²`를 전비에 되먹임한 `E_net_J`, `km_per_kWh`.
 - 보정: `data/thermal/fit_lptn.py`(일회성). 자료: `prius2004_steady.csv`(ORNL 표 9·10), `prius2004_peak_winding_transient.csv`(ORNL 그림 19). 테스트 `tests/test_p5_thermal.py`(해석해, 에너지 보존, 정상상태, 정확한 합성, ORNL 비교, 되먹임).
 - 한계와 오차는 `docs/validation_report.md` M7 절. 자석 노드 없음, 외부 경계 온도는 입력.
+
+## 5-6. M8: 권선 전환 (`winding.py`, 구현됨)
+
+- `reconfigure(model, a) -> model'`: 턴 수 비 a의 같은 모터를 단자에서 본 모델. ConstantParamModel은 `Ld' = a²Ld`, `Lq' = a²Lq`, `ψm' = aψm`, `Rs' = a²Rs`; FluxMapModel은 축을 `/a`, 맵을 `×a`, `Rs' = a²Rs`. 둘 다 `turns_ratio`(누적 곱)를 가진다. `a ≤ 0`이면 `ValueError`.
+- 불변량: `T'(i') = T(a·i')`, `v'(i') = a·v(a·i')`, `P_cu'(i') = P_cu(a·i')`. 철손(`B ∝ |ψ|/turns_ratio`)과 경험적 잔여 손실(`I × turns_ratio`)은 원래 권선 기준으로 환산해 같은 값이 나온다(`losses.py`).
+- `compare_windings(model, limits, a, T_grid, speed_grid, iron, mech, excess) -> WindingComparison`: 기준과 a배 결선의 효율맵, 셀마다 입력 전력이 작은 결선을 고른 `best`(전류는 기준 결선 단자 전류로 환산), `choice`(0/1), 두 결선의 최대 토크 곡선. FluxMapModel이면 a배 결선의 `Imax`를 맵이 덮는 `min(Imax, 맵 최대 전류/a)`로 줄인다.
+- 한계: 전환 과도·접점 손실·히스테리시스·병렬 경로 순환 전류 없음, 구리 총 부피가 같다고 봄. 결과와 해석은 `docs/validation_report.md` M8 절. 테스트 `tests/test_p5_winding.py`.

@@ -69,6 +69,7 @@ class ConstantParamModel(_DqModel):
     Ld: float
     Lq: float
     psi_m: float
+    turns_ratio: float = 1.0      # 권선 전환(engine/winding.py)으로 만든 모델의 턴 수 비 a (철손·잔여 손실을 원래 권선 기준으로 환산할 때 쓴다)
 
     def __post_init__(self):
         if self.p < 1 or int(self.p) != self.p:
@@ -105,6 +106,7 @@ class FluxMapModel(_DqModel):
     torque_fea: np.ndarray | None = None   # [N·m], 모양 (n_id, n_iq)
     source: str = ""
     method: str = "linear"
+    turns_ratio: float = 1.0       # 권선 전환(engine/winding.py)으로 만든 모델의 턴 수 비 a (철손·잔여 손실을 원래 권선 기준으로 환산할 때 쓴다)
     _interp: RegularGridInterpolator = field(init=False, repr=False)
 
     def __post_init__(self):

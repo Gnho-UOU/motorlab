@@ -105,7 +105,7 @@ def iron_loss(model, id, iq, wm, iron: IronParams):
     기획서 식에 없어 생략한다. 자속밀도를 ψ 크기에 비례한다고 본 것은 근사다.
     """
     f = model.p * np.asarray(wm, dtype=float) / (2 * np.pi)
-    psi = np.hypot(*model.flux(id, iq))
+    psi = np.hypot(*model.flux(id, iq)) / getattr(model, "turns_ratio", 1.0)     # 권선 전환 모델이면 원래 권선의 자속 (같은 자속밀도)
     total = 0.0
     for m, c in ((iron.m_tooth, iron.c_tooth), (iron.m_yoke, iron.c_yoke)):
         B = c * psi
@@ -139,7 +139,7 @@ def loss_breakdown(model, id, iq, wm, iron: IronParams | None, mech: MechParams 
     P_cu = copper_loss(model, id, iq)
     P_fe = 0.0 * P_shaft if iron is None else iron_loss(model, id, iq, wm, iron)
     P_mech = 0.0 * P_shaft if mech is None else mech_loss(wm, mech)
-    P_excess = 0.0 * P_shaft if excess is None else excess_loss(id, iq, wm, model.p, excess) + 0.0 * P_shaft
+    P_excess = 0.0 * P_shaft if excess is None else excess_loss(id * getattr(model, 'turns_ratio', 1.0), iq * getattr(model, 'turns_ratio', 1.0), wm, model.p, excess) + 0.0 * P_shaft
     P_in, P_out = P_shaft + P_cu + P_fe + P_excess, P_shaft - P_mech
     with np.errstate(divide="ignore", invalid="ignore"):
         eta = np.where(P_in > 0, P_out / P_in, np.nan)
