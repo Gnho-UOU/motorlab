@@ -57,6 +57,11 @@ def main() -> None:
     pred = np.array([kc * r["I_A"] ** 2 * 60.0 ** 2 for r in rows])
     Imax = max(r["I_A"] for r in rows)
     print(f"60 N·m 이상 {len(rows)}행: 관측 잔여 중앙값 {np.median(obs):.0f} W (범위 {obs.min():.0f}~{obs.max():.0f}), 경험식 k_c 항 예측 중앙값 {np.median(pred):.0f} W (범위 {pred.min():.0f}~{pred.max():.0f})")
+    m3 = (sp >= 3000) & (c["P_ac_W"] > 5000)
+    f3, I3 = 4 * sp[m3] / 60, c["Iac_rms_A"][m3]
+    kc_meas = np.linalg.lstsq(np.c_[f3, I3 ** 2 * f3 ** 2], ex[m3], rcond=None)[0][1]
+    pred2 = np.array([kc_meas * r["I_A"] ** 2 * 60.0 ** 2 for r in rows])
+    print(f"(참고) 같은 식을 측정 전류(Iac_rms)로 다시 맞추면 k_c = {kc_meas:.2e} (모델 전류 기준 {kc:.1e}), 60 Hz 예측 중앙값 {np.median(pred2):.0f} W, 관측 − 예측 중앙값 {np.median(obs - pred2):.0f} W")
     print(f"관측 − 예측 중앙값 {np.median(obs - pred):.0f} W. 열전대 온도 불확실성 ±100 W를 허용하면 시험이 허용하는 k_c 상한은 약 {(100 + np.median(obs)) / (Imax ** 2 * 3600):.1e} (맞춘 값 {kc:.1e}의 {(100 + np.median(obs)) / (Imax ** 2 * 3600) / kc:.2f}배)")
 
 
