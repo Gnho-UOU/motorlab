@@ -116,7 +116,7 @@ def _driver(i_abc: tuple[float, float, float], fem: str, probes: list[complex] |
 
 def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | None = None,
               femmcli: str | None = None, timeout: int = 3600, br_T: float | None = None,
-              probes: list[complex] | None = None) -> dict:
+              probes: list[complex] | None = None, mur: float | None = None) -> dict:
     """모델을 만들어 저장 -> .fem에 [DoSmartMesh] = 0 삽입 -> 다시 열어 푼다.
 
     xfemm의 Lua에는 smartmesh 명령이 없고(주석 처리됨) 기본값이 켜짐이다. 스마트 메시는 가까운 꼭짓점 간격에 맞춰 요소를 잘게
@@ -126,6 +126,8 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | 
     g = load_geometry()
     if br_T is not None:                       # 자석 Br20을 덮어쓴다(민감도·보정용). 기본은 JSON 값 1.24 T
         g["magnet"]["Br20_T"] = br_T
+    if mur is not None:                        # 자석 회복 비투자율을 덮어쓴다(M5: 소재별 μr)
+        g["magnet"]["mur"] = mur
     with tempfile.TemporaryDirectory() as td:
         d = Path(td)
         (d / "build.lua").write_text(lua_model(g, build_full(g, mesh, rotor_deg), "m.fem"))
@@ -147,10 +149,10 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | 
 
 
 def solve_points(points: list[tuple[float, float, float, float]], mesh: dict | None = None, jobs: int = 8,
-                 femmcli: str | None = None, br_T: float | None = None) -> dict[str, np.ndarray]:
+                 femmcli: str | None = None, br_T: float | None = None, mur: float | None = None) -> dict[str, np.ndarray]:
     """points: [(iA, iB, iC [A 첨두], θr [기계 °])]. 점마다 독립 프로세스를 jobs개씩 병렬 실행."""
     with ThreadPoolExecutor(max_workers=jobs) as ex:
-        res = list(ex.map(lambda p: solve_one(p[:3], p[3], mesh, femmcli, br_T=br_T), points))
+        res = list(ex.map(lambda p: solve_one(p[:3], p[3], mesh, femmcli, br_T=br_T, mur=mur), points))
     return {"torque_Nm": np.array([r["torque_Nm"] for r in res]),
             "lambda_abc_Wb": np.array([r["lambda_abc_Wb"] for r in res]),
             "nodes": np.array([r["nodes"] for r in res]), "elements": np.array([r["elements"] for r in res])}

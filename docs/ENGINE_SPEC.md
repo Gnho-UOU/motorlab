@@ -137,7 +137,16 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `FluxMapModel`은 선형 보간을 numpy로 직접 구현(`_bilinear`, scipy와 같은 값)하고 `optimal_current_map`은 전류 격자의 자속을 속도마다 다시 구하지 않는다(`voltage_from_flux`). 효율맵 40×60이 1.5초다(기획서 G2).
 - `waveforms.py`: `phase_waveforms(id, iq, vd, vq, n)` — dq를 한 전기 주기의 3상 전류·전압(크기 불변 역 Park)과 전류각 β로 되돌린다. 화면의 3상 파형·위상자·권선 발광이 이 값을 쓴다(화면에 삼각함수 계산을 두지 않는다).
 - `CycleResult`의 구간별 배열: `loss_power_W`(모터 손실 동력), `efficiency`, `current_peak_A`(효율맵의 최소 전류 운전점을 보간). 드라이브 모드가 쓴다.
-- `magnet.py`, `optimize.py`: P5에서 설계.
+- `optimize.py`: P5 뒤쪽(M6)에서 설계.
+
+## 5-2. M5: 자석 소재와 감자 검토 (`magnet.py`, 구현됨)
+
+- `load_grade(name) -> MagnetGrade`: `data/materials/magnets.json`(표 값·출처)과 `magnet_demag_curves.csv`(J-H 곡선 8개 온도)를 읽는다. 곡선이 없는 등급(페라이트)은 속성만 갖고 `br/hcj/hk`는 `NotImplementedError`.
+- `MagnetGrade`: `br(T)`, `hcj(T)`, `hk(T)`(J = 0.9·Br인 자계), `hcb(T)`, `mu_r(T)`(곡선 직선부 기울기), `polarization(H, T)`, `flux_density(H, T) = J − μ0H`, `demag_margin(H, T) = 1 − H/Hk`, `load_line_point(Pc, T)`(곡선과 부하선 B = Pc·μ0H의 교점). 온도는 곡선이 있는 −40~180 °C 안에서만 선형 보간하고 밖은 `ValueError`.
+- `demag_coupling(H_noload, H_loaded, id)`로 κ [kA/m per A]를 구하고 `field_after_armature(H0, κ, id) = H0 + κ·max(−id, 0)`. 기각한 가정(자석 자속 ∝ ψd)은 `docs/validation_report.md` M5 절.
+- FEA 확인: `femm/demag_check.py`가 소재별 Br(T), μr(T)를 xfemm Prius 전체 모터에 넣고 자석 안 자화 방향 B에서 H_demag를 읽어 `data/fea/prius2004_demag_check.csv`에 쓴다. 엔진은 이 CSV만 읽는다(테스트 `test_demag_coupling_from_prius_fea...`).
+- `map_for_magnet(base, lo, hi, Br_lo, Br_hi, Br) -> FluxMapModel`: 소재의 Br(T)에 맞춘 자속 맵. `ψ' = ψ_기준 + Δ(Br)`, Δ는 가정 자석 맵 두 개(Br 1.00, 1.40 T, 50 A 격자)와 기준 맵의 차이를 Br로 선형 보간하고 쌍선형으로 펼친다. Br이 두 값 밖이면 `ValueError`. FEA 점검에서 최대 오차 ψd 1.0 mWb, ψq 0.8 mWb(`tests/test_p5_magnet_maps.py`).
+- 테스트: `tests/test_p5_magnet.py` (곡선이 표 값·온도계수와 따로 일치, 무릎점 정의, 부하선 교점, 온도 단조, 범위 오류, 선형 감자, 출처 없는 숫자 금지).
 
 ## 6. 남은 결정 (구현 중 사용자와 확인)
 - 철손을 토크에 반영할지(등가 철손 저항 모델) — P2 검증 오차를 본 뒤 결정

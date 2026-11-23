@@ -27,3 +27,7 @@ id_A,iq_A,psi_d_Wb,psi_q_Wb,torque_Nm
 - `prius2004_fullmodel_25A.csv`, `prius2004_fullmodel_Br1056_25A.csv`: 전체 모터 모델(공극 메시, 두 위치 평균), **제3자 형상**. 앞의 것은 Br 1.24 T, 뒤의 것은 Br만 1.056 T로 무부하 역기전력에 맞춘 보정 맵이다(`docs/FEA_OPTIONS.md` 3-3~3-5절).
 - `prius2004_fullmodel_ornl_25A.csv`, `prius2004_fullmodel_pocket_25A.csv`: **쓰지 않는다.** 앞의 것은 TM-217 집중 정수 모델의 자석 5.31 mm 형상 + Br 1.065 T, 뒤의 것은 "자석 5.31 mm가 6.5 mm 포켓 안에 있다"는 가설 형상이다. TM-2010/253 해체 측정이 자석이 6.5 mm 두께 전체임을 확인해서 가설은 폐기했다. 기각된 시도의 기록으로 남긴다(`docs/FEA_OPTIONS.md` 3-6절 3)).
 - **`prius2004_fullmodel_teardown_25A.csv` (현재 기본)**: 해체 치수 형상(`data/benchmarks/prius2004_geometry_teardown.json`: 자석 18.9 × 6.5 mm, 공극 0.73 mm, 적층 83.6 mm) + 자석 Br 1.06 T(무부하 역기전력에 맞춘 교정값). 다시 만들기: `PRIUS_BR_T=1.06 FEMMCLI=<femmcli> python femm/validate_full.py fluxmap <출력.csv>` (약 50분, 이어 달리기 가능).
+
+## 가정 자석 맵 (M5, 2026-11-23)
+- `prius2004_fullmodel_Br100_mur104_50A.csv`, `prius2004_fullmodel_Br140_mur104_50A.csv`: 같은 Prius 형상과 같은 방법(전체 모터, 회전자 0°·3.75° 평균)으로 자석만 Br 1.00 T, 1.40 T(μr 1.04)로 바꿔 50 A 간격(36점)으로 푼 맵. **Prius의 실제 자석이 아니라 소재 비교용 가정**이다. `engine.magnet.map_for_magnet`이 기준 맵과 함께 써서 소재 Br(T)에 맞춘 맵을 만든다. 만든 명령: `PRIUS_MAP_STEP=50 PRIUS_BR_T=<Br> PRIUS_MUR=1.04 python femm/validate_full.py fluxmap <출력.csv>`.
+

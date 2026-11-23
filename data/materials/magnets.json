@@ -1,0 +1,48 @@
+{
+ "__source__": "영구자석 물성: 제조사 공개 데이터시트 값만 넣었다. 값마다 source가 있고, 찾지 못한 값은 null이다(null은 계산에서 '판정 불가'가 된다). 감자 곡선은 magnet_demag_curves.csv.",
+ "grades": {
+  "N45SH": {
+   "family": "소결 NdFeB",
+   "maker": "Arnold Magnetic Technologies",
+   "Br_T": {"min": 1.320, "nominal": 1.350, "max": 1.380, "source": "Arnold N45SH 데이터시트 Rev. 210607 (표 Br, 1320/1350/1380 mT)"},
+   "HcB_kApm": {"min": 979, "nominal": 1015, "max": 1050, "source": "같은 표 (HcB 979/1015/1050 kA/m)"},
+   "HcJ_min_kApm": {"value": 1592, "source": "같은 표 (HcJ 최소 1,592 kA/m = 20,000 Oe). 공칭·최대는 표에 없음"},
+   "BHmax_kJm3": {"min": 342, "nominal": 354, "max": 366, "source": "같은 표 (342/354/366 kJ/m³)"},
+   "alpha_Br_pct_per_C": {"value": -0.12, "range_C": [20, 150], "source": "같은 쪽 열 특성 표 (20~150 °C에서 측정)"},
+   "alpha_HcJ_pct_per_C": {"value": -0.55, "range_C": [20, 150], "source": "같은 쪽 열 특성 표 (카탈로그 표에는 -0.549)"},
+   "Tmax_C": {"value": 150, "source": "Arnold Neo Catalog Rev. 210607 2쪽 표 (최고 사용 온도 Tw max)"},
+   "Curie_C": {"value": 310, "source": "N45SH 데이터시트 열 특성 표"},
+   "density_g_cm3": {"value": 7.6, "source": "N45SH 데이터시트"},
+   "resistivity_uOhm_cm": {"parallel": 150, "perpendicular": 130, "source": "N45SH 데이터시트 (150 // 130 ⊥)"},
+   "demag_curves": true
+  },
+  "N38UH": {
+   "family": "소결 NdFeB",
+   "maker": "Arnold Magnetic Technologies",
+   "Br_T": {"min": 1.220, "nominal": 1.260, "max": 1.300, "source": "Arnold Neo Catalog Rev. 210607 41쪽 N38UH 시트 (1220/1260/1300 mT)"},
+   "HcB_kApm": {"min": 876, "nominal": 931, "max": 987, "source": "같은 쪽 (876/931/987 kA/m)"},
+   "HcJ_min_kApm": {"value": 1990, "source": "같은 쪽 (HcJ 최소 1,990 kA/m = 25,000 Oe)"},
+   "BHmax_kJm3": {"min": 287, "nominal": 307, "max": 326, "source": "같은 쪽 (287/307/326 kJ/m³)"},
+   "alpha_Br_pct_per_C": {"value": -0.12, "range_C": [20, 180], "source": "같은 쪽 열 특성 표 (20~180 °C에서 측정)"},
+   "alpha_HcJ_pct_per_C": {"value": -0.51, "range_C": [20, 180], "source": "같은 쪽 열 특성 표"},
+   "Tmax_C": {"value": 180, "source": "Arnold Neo Catalog Rev. 210607 2쪽 표"},
+   "Curie_C": {"value": 310, "source": "N38UH 시트 열 특성 표"},
+   "density_g_cm3": {"value": 7.6, "source": "N38UH 시트"},
+   "resistivity_uOhm_cm": {"parallel": 150, "perpendicular": 130, "source": "N38UH 시트"},
+   "demag_curves": true
+  },
+  "Y30H-1": {
+   "family": "소결 페라이트 (스트론튬)",
+   "maker": "중국 표준 등급 Y30H-1 = Arnold C8 = Feroba3 (Eclipse Magnetics 교차 참조표)",
+   "Br_T": {"min": 0.380, "max": 0.400, "source": "Eclipse Magnetics 'Ferrite Magnets/Ceramic Magnets Datasheet' 대표값 표 (Br 380-400 mT). 공칭값은 표에 없다"},
+   "HcB_kApm": {"min": 230, "max": 275, "source": "같은 표 (230-275 kA/m)"},
+   "HcJ_kApm": {"min": 235, "max": 290, "source": "같은 표 (235-290 kA/m)"},
+   "BHmax_kJm3": {"min": 27.0, "max": 32.0, "source": "같은 표 (27.0-32.0 kJ/m³)"},
+   "alpha_Br_pct_per_C": {"value": -0.2, "source": "Arnold TECHNote TN 0205 rev.2015a: 페라이트의 유도(Br) 온도계수 -0.2 %/°C (등급 구분 없는 일반 값)"},
+   "alpha_HcJ_pct_per_C": {"value": null, "source": "찾지 못함. 페라이트는 보자력 온도 특성이 NdFeB와 반대여서 저온 감자 검토에 필요한 값이다. 등급별 인도 사양서가 필요하다(TDK 사이트는 자동 접근 403)"},
+   "Curie_C": {"value": 450, "source": "Arnold TN 0205 rev.2015a (약 450 °C)"},
+   "Tmax_C": {"value": null, "source": "등급별 값을 찾지 못함 (Eclipse 안내문은 페라이트 일반 최고 약 250 °C)"},
+   "demag_curves": false
+  }
+ }
+}

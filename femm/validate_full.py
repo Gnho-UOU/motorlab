@@ -26,6 +26,7 @@ import prius_run as pr   # noqa: E402  (park, inverse_park)
 ROOT = Path(__file__).resolve().parents[1]
 import os  # noqa: E402
 BR_OVERRIDE = float(os.environ["PRIUS_BR_T"]) if os.environ.get("PRIUS_BR_T") else None   # 자석 Br20 덮어쓰기[T]
+MUR_OVERRIDE = float(os.environ["PRIUS_MUR"]) if os.environ.get("PRIUS_MUR") else None   # 자석 μr 덮어쓰기(M5 가정 소재 맵)
 AGE_MAP = ROOT / "data" / "flux_maps" / "prius2004_xfemm_delta0_25A.csv"
 OUT_DIR = ROOT / "data" / "fea"
 CROSS_POINTS = [(0, 50), (0, 150), (0, 250), (-50, 100), (-100, 150), (-100, 250), (-150, 100), (-150, 200),
@@ -74,8 +75,10 @@ def map_header() -> str:
     g = pf.load_geometry()
     mag = g["magnet"]
     br = BR_OVERRIDE if BR_OVERRIDE is not None else mag["Br20_T"]
-    note = f"Br20 = {br} T, mur = {mag['mur']}"
-    if BR_OVERRIDE is not None:
+    note = f"Br20 = {br} T, mur = {MUR_OVERRIDE if MUR_OVERRIDE is not None else mag['mur']}"
+    if MUR_OVERRIDE is not None:
+        note += " (M5 소재 비교용 가정 자석: Prius 형상에 넣은 값이고 ORNL 보정값이 아니다)"
+    elif BR_OVERRIDE is not None:
         note += f" (Br은 보정값: ORNL 무부하 역기전력 상수 환산 |ψ| = 0.174 Wb에 맞춤. 형상 파일의 {mag['Br20_T']} T가 아니다)"
     return MAP_HEADER.format(geom=ps.GEOMETRY_JSON.name, what=g["__source__"]["what"], magnet=note)
 
@@ -84,7 +87,7 @@ MAP_POSITIONS_DEG = (0.0, 3.75)
 
 
 def fluxmap(out: Path) -> None:
-    step = 25.0
+    step = float(os.environ.get("PRIUS_MAP_STEP", "25"))                 # 기본 25 A (121점). M5 가정 소재 맵은 50 A(36점)로 푼다
     ids, iqs = np.arange(-250.0, 1e-9, step), np.arange(0.0, 250.0 + 1e-9, step)
     done = set()
     if out.exists():
@@ -106,7 +109,7 @@ def fluxmap(out: Path) -> None:
                 th = math.radians(pr.THETA0_ELEC_DEG + 4 * d)
                 a = pr.inverse_park(np.array([i]), np.array([q]), np.array([th]))[0]
                 pts.append((*a, d)); ths.append(th)
-        r = pf.solve_points(pts, jobs=8, br_T=BR_OVERRIDE)
+        r = pf.solve_points(pts, jobs=8, br_T=BR_OVERRIDE, mur=MUR_OVERRIDE)
         psid, psiq = pr.park(r["lambda_abc_Wb"], np.array(ths))
         n = len(MAP_POSITIONS_DEG)
         with out.open("a") as f:

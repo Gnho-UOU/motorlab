@@ -7,3 +7,6 @@ __pycache__/
 .DS_Store
 data/benchmarks/raw/
 .local_tools/
+
+# 연구실 강의 자료(비공개): GitHub에 올리지 않는다
+reference/lecture/

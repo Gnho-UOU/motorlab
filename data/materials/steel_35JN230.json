@@ -1,0 +1,18 @@
+{
+ "__source__": "JFE Steel 무방향성 전자강판 35JN230 (JN CORE). 출처: JFE ELECTRICAL STEEL SHEETS 카탈로그 f1e-001 (https://www.jfe-steel.co.jp/en/products/electrical/catalog/f1e-001.pdf), 18쪽 'Typical Electrical and Magnetic Properties'와 14쪽 보증값 표. 대표값은 보증값이 아니라고 카탈로그가 밝힌다.",
+ "grade": "35JN230",
+ "thickness_mm": 0.35,
+ "assumed_density_kg_dm3": 7.60,
+ "resistivity_uOhm_cm": 55,
+ "typical": {
+  "core_loss_W_per_kg": {"W10_50": 0.89, "W15_50": 2.10, "W10_60": 1.10, "W15_60": 2.60},
+  "flux_density_T": {"B10": 1.47, "B25": 1.57, "B50": 1.66, "B100": 1.78},
+  "note": "B10/B25/B50/B100은 자화력 1000/2500/5000/10000 A/m에서의 자속밀도(B50은 카탈로그가 5000 A/m로 정의). W15/50은 50 Hz 1.5 T 철손."
+ },
+ "guaranteed": {
+  "core_loss_max_W_per_kg": {"W10_50": 0.95, "W15_50": 2.30, "W10_60": 1.20, "W15_60": 2.90},
+  "B50_min_T": 1.62,
+  "note": "14쪽 보증값 표. 측정법 JIS C 2550-1 (2011)."
+ },
+ "usage_note": "Prius FEA 모델의 강판은 pyleecan M400-50A(0.5 mm)이고 손실표 출처가 미확인이며, ORNL은 Prius 강판 두께를 0.33 mm로 적었다. 이 35JN230은 Prius 강판이 아니다. 값은 JFE 공개 카탈로그의 것이다."
+}
