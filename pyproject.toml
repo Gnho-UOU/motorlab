@@ -8,13 +8,14 @@ dependencies = ["numpy", "scipy"]
 
 [project.optional-dependencies]
 dev = ["pytest", "matplotlib", "jupyter", "nbconvert", "ipykernel"]
+api = ["fastapi", "uvicorn", "httpx"]   # api/ (엔진 의존성이 아니다)
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["engine"]
+packages = ["engine", "api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

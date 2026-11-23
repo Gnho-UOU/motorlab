@@ -49,6 +49,10 @@ class _DqModel:
         """
         id, iq, we = (np.asarray(x, dtype=float) for x in (id, iq, we))
         psi_d, psi_q = self.flux(id, iq)
+        return self.voltage_from_flux(id, iq, psi_d, psi_q, we)
+
+    def voltage_from_flux(self, id, iq, psi_d, psi_q, we):
+        """이미 구한 자속으로 전압을 만든다(같은 전류 격자를 속도마다 다시 보간하지 않으려고 분리). voltage()가 이것을 쓴다."""
         return self.Rs * id - we * psi_q, self.Rs * iq + we * psi_d
 
 
@@ -168,6 +172,23 @@ class FluxMapModel(_DqModel):
     def flux(self, id, iq):
         """맵을 보간한 (ψd, ψq) [Wb]. 격자 밖이면 ValueError."""
         id, iq = np.broadcast_arrays(np.asarray(id, dtype=float), np.asarray(iq, dtype=float))
-        pts = np.stack([self._clamp(id, self.id_axis), self._clamp(iq, self.iq_axis)], axis=-1)
+        x, y = self._clamp(id, self.id_axis), self._clamp(iq, self.iq_axis)
+        if self.method == "linear":
+            return self._bilinear(x, y)
+        pts = np.stack([x, y], axis=-1)
         v = self._interp(pts.reshape(-1, 2)).reshape(id.shape + (2,))
         return v[..., 0], v[..., 1]
+
+    def _bilinear(self, x, y):
+        """쌍선형 보간(선형 RegularGridInterpolator와 같은 값). 격자 칸을 searchsorted로 찾아 네 모서리를 직접 읽는다.
+        효율맵 한 장에서 맵을 수백 번 부르므로 scipy의 일반 N차원 구현보다 훨씬 빠르다(기획서 G2)."""
+        ax, ay = self.id_axis, self.iq_axis
+        i = np.clip(np.searchsorted(ax, x, side="right") - 1, 0, ax.size - 2)
+        j = np.clip(np.searchsorted(ay, y, side="right") - 1, 0, ay.size - 2)
+        u = (x - ax[i]) / (ax[i + 1] - ax[i])
+        v = (y - ay[j]) / (ay[j + 1] - ay[j])
+        w00, w10, w01, w11 = (1 - u) * (1 - v), u * (1 - v), (1 - u) * v, u * v
+        out = []
+        for m in (self.psi_d_map, self.psi_q_map):
+            out.append(w00 * m[i, j] + w10 * m[i + 1, j] + w01 * m[i, j + 1] + w11 * m[i + 1, j + 1])
+        return out[0], out[1]

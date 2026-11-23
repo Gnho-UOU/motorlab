@@ -129,9 +129,12 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `optimal_current_map(model, limits, T_grid, speeds) -> (id, iq, feasible)`는 `operating.py`에 둔다. 속도마다 dq 격자에서 "T 이상을 내는 점 중 전류 최소" 포락선을 구하고, 점마다 전류각을 확대 탐색으로 보정한다. 스칼라 `optimal_current`와 교차 검증한다. 보정이 전압 경계에서 실행 가능점을 못 찾으면 격자점을 그대로 쓰므로 실제 토크는 T_grid보다 약간 클 수 있고, 손실은 실제 토크로 계산한다.
 - 목표: 효율맵 1장(40×60) 2초 이내.
 
-## 5-1. M4 이후 윤곽
+## 5-1. M4: 차량·주행 사이클·전비 (`vehicle.py`, 구현됨)
 
-- `vehicle.py`: `Vehicle`(질량, 등가질량계수, Cd, A, Crr, 기어비 G, 기어효율, 휠 반경), `load_cycle(name)`(WLTP/UDDS/HWFET, `data/cycles/`에 출처 기록), `run_cycle(vehicle, eff_map, cycle, regen_ratio)` → 에너지, 전비 km/kWh, 동작점 분포.
+- `Vehicle`(등가 질량 [kg], 도로 부하 `a [N]`, `b [N·s/m]`, `c [N·s²/m²]`, `motor_speed_gain` = ω_m/v = G/r_w [rad/s per m/s], 기어 무부하 손실 표). `load_vehicle(name)`은 `data/vehicles/<name>.json`(EPA·ORNL 출처 단위)을 읽어 SI로 바꾼다.
+- `load_cycle(name)`: `WLTP`(클래스 3b), `UDDS`, `HWFET`. `data/cycles/*.csv`(출처·검산 거리 기록). `Cycle(t_s, v_ms, source)`.
+- `run_cycle(vehicle, eff_map, cycle, regen_ratio) -> CycleResult`: 구간 중점 적분으로 `E_in`, `E_regen`, `E_net`, 바퀴 구동·제동 에너지, 기어·모터 손실, 마찰 제동, `shortfall`(모터가 못 낸 몫), 시계열, `km_per_kWh`, `Wh_per_km`. 유도와 한계는 `docs/derivations.md` 11절.
+- `FluxMapModel`은 선형 보간을 numpy로 직접 구현(`_bilinear`, scipy와 같은 값)하고 `optimal_current_map`은 전류 격자의 자속을 속도마다 다시 구하지 않는다(`voltage_from_flux`). 효율맵 40×60이 1.5초다(기획서 G2).
 - `magnet.py`, `optimize.py`: P5에서 설계.
 
 ## 6. 남은 결정 (구현 중 사용자와 확인)

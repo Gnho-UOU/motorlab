@@ -1,0 +1,20 @@
+{
+ "id": "prius2004",
+ "name": "Toyota Prius 2004 (NHW20) 구동모터 MG2",
+ "sources": "ORNL/TM-2004/137, TM-2004/217, TM-2006/423, TM-2005/33, TM-2010/253 (data/benchmarks/prius2004_ornl.md), FEA 자속 맵(docs/FEA_OPTIONS.md 3-6절)",
+ "pole_pairs": 4,
+ "flux_map": "data/flux_maps/prius2004_fullmodel_teardown_25A.csv",
+ "geometry": "data/benchmarks/prius2004_geometry_teardown.json",
+ "vehicle": "prius2004",
+ "limits_default": {"Imax_A": 250.0, "Vdc_V": 500.0, "k_mod": 0.6366197723675814,
+  "note": "Imax 250 A는 ORNL 시험 상한, Vdc 500 V는 ORNL 시험의 DC 링크 전압(TM-2006/423), k_mod = 2/π는 육각파 기본파 상전압 피크 = (2/π)·Vdc (ORNL이 적은 500 V 육각파 선간 실효 390 V와 일치)"},
+ "winding": {
+  "R_21C_ohm": 0.069, "alpha_per_K": 0.00393,
+  "R_source": "ORNL/TM-2010/253 표 2.7: 상 저항 0.069 Ω (21 °C), 선간 값의 평균을 2로 나눈 값",
+  "alpha_source": "구리의 저항 온도계수(20 °C 기준 약 0.00393 /K). pyleecan Copper1 값과 표준 구리 값이 같은 수준"},
+ "mech_loss": {
+  "a_W_per_rad_s": 0.44058, "b_W_per_rad_s3": 7.7652e-07,
+  "source": "ORNL/TM-2006/423 표 3.7 '모터 로터 손실' 12점(data/benchmarks/prius2004_rotor_loss.csv)에 P = a·ω + b·ω³을 최소제곱 피팅한 값. 이 값은 로터를 낀 구성 − 로터를 뺀 구성이라 무부하 철손을 포함한다(철손을 따로 더하지 않는다). 윤활유 약 25 °C 값"},
+ "excess_loss": "data/fea/prius2004_excess_loss_fit.json",
+ "validation_csv": "data/fea/prius2004_efficiency_variants.csv"
+}

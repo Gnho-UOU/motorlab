@@ -213,8 +213,9 @@ def optimal_current_map(model, limits: Limits, T_grid, speeds):
     id_o, iq_o = np.full(shape, np.nan), np.full(shape, np.nan)
     feasible = np.zeros(shape, dtype=bool)
 
+    g_psi_d, g_psi_q = model.flux(g_id, g_iq)       # 전류 격자의 자속은 속도와 무관하므로 한 번만 구한다
     for j, w in enumerate(speeds):
-        ok = _vmag(model, g_id, g_iq, model.p * w) <= V
+        ok = np.hypot(*model.voltage_from_flux(g_id, g_iq, g_psi_d, g_psi_q, model.p * w)) <= V
         if not ok.any():
             continue
         order = np.argsort(g_T[ok])

@@ -1,0 +1,14 @@
+{
+ "__source__": {
+  "what": "2004 Toyota Prius(NHW20) 차량 파라미터. 도로 부하와 질량은 EPA 시험 차량 기록, 모터-차속 비는 ORNL 측정 보고서, 기어 손실은 ORNL 구성 시험.",
+  "road_load": "U.S. EPA, Data on Cars Used for Testing Fuel Economy, 2004 모델연도 파일 04tstcar.csv, 시험 차량 04-NHW2 'PRIUS' (시험 번호 1052640 MFR, 9003231 EPA, 두 기록의 값이 같다). https://www.epa.gov/sites/default/files/2016-07/04tstcar.csv (SHA-256은 epa_file_sha256). 열 TPF_DYN_TRK_A/B/C_MSR = 19.917, 0.13911, 0.016365: 도로 부하 F = A + B·v + C·v², 힘 lbf, 속도 mph (EPA 규정 40 CFR 86). 같은 기록에 TPF_EDYN_TRK_A/B/C = 6.299, 0.00242, 0.01658이 따로 있고 값이 훨씬 작아 동력계 설정 값(동력계 자체 손실을 뺀 값)으로 읽었다. 열 이름과 목표/설정 값의 대응은 EPA 필드 정의 문서(test-car-list-definitions.pdf의 'target-a/b/c', 'set-a/b/c')와 값의 크기에서 추론한 것이고, 열 이름을 직접 설명한 문장은 찾지 못했다.",
+  "mass": "같은 EPA 기록 VC_DSN_ETW_MSR = 3250 lb(등가 시험 중량 = 공차 중량 + 300 lb, EPA 필드 정의). 동력계 관성 설정이라 회전 관성이 이미 들어 있다고 보고 별도 회전 질량 계수를 쓰지 않는다. 이것은 시험 중량(운전자·화물 포함)이지 공차 중량이 아니다.",
+  "motor_speed": "ORNL/TM-2006/423 3.2절 각주 3: 'The rotational speed of the PMSM (rpm) is 60.66 times the vehicle speed in mph. This is based on the constant gear ratio of the Prius, wheel/tire diameter, and conversion of units.' 이 값 하나가 기어비 G와 바퀴 반지름 r_w의 비 G/r_w를 정한다(ω_m = G·v/r_w). 검산: EPA 기록의 축 비 4.11, TM-423 표 3.7의 모터 6006 rpm 대 축 1460 rpm(비 4.114).",
+  "gear_loss": "ORNL/TM-2006/423 표 3.7 'Gear loss'(data/benchmarks/prius2004_rotor_loss.csv). 변속기 안 기어·체인·차동 기어의 무부하 손실이다. 윤활유 약 25 °C 값이고 80 °C에서는 약 20% 줄어든다. 부하 의존 기어 손실은 자료가 없어 넣지 않았다.",
+  "epa_file_sha256": "0e83e0bd3d7de1c9e92f4527411194b81217a9169da624dec88032f5bfb4a273"
+ },
+ "mass_equivalent_test_weight_lb": 3250,
+ "road_load_epa_target": {"A_lbf": 19.917, "B_lbf_per_mph": 0.13911, "C_lbf_per_mph2": 0.016365},
+ "motor_rpm_per_vehicle_mph": 60.66,
+ "gear_loss_csv": "data/benchmarks/prius2004_rotor_loss.csv"
+}
