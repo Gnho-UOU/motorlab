@@ -2,11 +2,11 @@
 <html lang="ko"><head><meta charset="utf-8"><title>Motor Lab 2쪽 요약</title>
 <style>
 @page { size: A4; margin: 14mm 15mm; }
-body { font-family: "Apple SD Gothic Neo","Malgun Gothic","NanumGothic",sans-serif; font-size: 9.5pt; line-height: 1.42; color: #1b1f24; }
+body { font-family: "Apple SD Gothic Neo","Malgun Gothic","NanumGothic",sans-serif; font-size: 9.2pt; line-height: 1.36; color: #1b1f24; }
 h1 { font-size: 19pt; margin: 0 0 2pt; } h2 { font-size: 12pt; margin: 12pt 0 3pt; border-bottom: 1.5px solid #d98d55; padding-bottom: 1pt; }
 .sub { color: #555; font-size: 9.5pt; margin-bottom: 6pt; }
 table { border-collapse: collapse; width: 100%; font-size: 9pt; margin: 4pt 0; } td, th { border: 1px solid #bbb; padding: 2.5pt 5pt; text-align: left; } th { background: #f1ece6; }
-img { display: block; margin: 0 auto; max-height: 112mm; max-width: 100%; } .pb { page-break-before: always; } ul { margin: 2pt 0 2pt 14pt; padding: 0; } li { margin: 1pt 0; }
+img { display: block; margin: 0 auto; max-height: 88mm; max-width: 100%; } .pb { page-break-before: always; } ul { margin: 2pt 0 2pt 14pt; padding: 0; } li { margin: 1pt 0; }
 .note { background: #f6f3ef; padding: 4pt 7pt; font-size: 9pt; }
 </style></head><body>
 
@@ -22,8 +22,9 @@ img { display: block; margin: 0 auto; max-height: 112mm; max-width: 100%; } .pb 
 <li><b>M2 운전 영역</b>: 전류 한계(250 A)·전압 한계(Vmax = (2/π)·Vdc, 육각파)에서 MTPA와 약계자 전류 결정.</li>
 <li><b>M3 손실·효율맵</b>: 구리손(R = 0.069 Ω @21 °C, 온도 보정), 기계손+무부하 철손(ORNL TM-423 표 3.7 회전자 손실 피팅), 선택형 경험적 잔여 손실(보정이므로 별도 표시).</li>
 <li><b>M4 전비</b>: F = m·dv/dt + (A + B·v + C·v²), 기어 비 60.66 rpm/mph, 회생은 효율맵 대칭으로 계산. WLTP·UDDS·HWFET.</li>
+<li><b>M5~M8</b>: 자석 감자 검토(제조사 곡선, FEA), 설계 최적화(GP 대리모델 + NSGA-II, FEA 평가), 열 모델(권선·철심 2노드 집중정수 열회로, ORNL 열관리 시험으로 보정), 권선 전환(턴 수 비 결선 모델).</li>
 <li><b>FEA</b>: xfemm(femmcli)로 전체 모터 공극 메시를 풀어 자속 맵과 잠금 토크를 만든다. 형상은 ORNL 해체 측정값(자석 18.9×6.5×83.1 mm, 공극 0.73 mm).</li>
-<li><b>규칙</b>: 모든 상수는 출처와 단위를 <code>data/</code>에 기록, 근거 없는 보정계수 금지, 엔진 테스트 124개 통과. 화면의 숫자는 모두 엔진 값.</li>
+<li><b>규칙</b>: 모든 상수는 출처와 단위를 <code>data/</code>에 기록, 근거 없는 보정계수 금지, 엔진 테스트 199개 통과. 화면의 숫자는 모두 엔진 값.</li>
 </ul>
 
 <h2>3. 검증 결과</h2>
@@ -42,22 +43,32 @@ img { display: block; margin: 0 auto; max-height: 112mm; max-width: 100%; } .pb 
 <tr><td>75 A 잠금 토크</td><td>실측보다 13% 낮음</td><td>원인 미확인</td></tr>
 </table>
 <ul>
-<li>미달의 원인 탐색: 자석 포켓 가설은 ORNL 해체 자료로 기각했다. 잔여 손실은 자속이 아니라 전류²·주파수²에 상관되고, 정현파 전원 시험에는 거의 나타나지 않아 인버터·PWM 관련일 가능성이 있다(증명하지 못함).</li>
+<li>미달의 원인 탐색: 자석 포켓 가설은 ORNL 해체 자료로 기각했다. 잔여 손실은 자속이 아니라 전류²·주파수²에 상관된다. 인버터 전류 고조파의 구리 손실은 원인이 아님을 확인했고(최대 약 160 W 대 잔여 1.3~2.3 kW), 60 Hz 정현파 시험은 주파수 의존 손실에 감도가 낮아 원인을 가르지 못한다(미해결).</li>
 <li>전비(WLTP 약 10 km/kWh)는 모터 입력 기준, 순수 전기 구동 환산, 인버터·배터리·보조 부하 제외. 고속 구간이 긴 사이클은 낙관적일 수 있다.</li>
 <li>설치 파일(DMG/EXE) 생성과 실제 GPU fps 측정은 아직 검증하지 않았다.</li>
 </ul>
 
-<h2>5. 화면 (P4)</h2>
+<h2>5. 확장 모듈 결과 (M5~M8, 모두 구현)</h2>
+<table>
+<tr><th>모듈</th><th>결과</th><th>한계</th></tr>
+<tr><td>M5 자석·감자</td><td>제조사 곡선(N45SH·N38UH)으로 150 °C N45SH는 최대 토크 전류에서 무릎점을 넘음, 소재별 WLTP 전비는 ±0.6% 둔감</td><td>Prius 형상에 소재를 가정, 페라이트 곡선은 제조사 추정</td></tr>
+<tr><td>예제 모터 대 JMAG</td><td>역기전력·토크·전압 1.1% 이내, 철손 −24%(메시와 무관 확인), 코깅 +18%(강판 투자율 상한 가정)</td><td>해석기끼리의 비교, JMAG 강판 곡선 모름</td></tr>
+<tr><td>M6 최적화</td><td>자석 5변수, FEA 73개 설계: 원 설계가 이미 파레토 근처(자석 −16%에 토크 −3.7%)</td><td>토크 ±1%, 감자는 한 점 평가</td></tr>
+<tr><td>M7 열</td><td>ORNL 연속 시험 권선 ±5 K, 첨두 곡선 뺀-하나 RMS 2.6 K 이하, 사이클 전비 ±1%</td><td>자석 노드 없음, 외부 경계는 시나리오</td></tr>
+<tr><td>M8 권선 전환</td><td>2병렬·Y→Δ는 5000 rpm 이상 최대 출력 약 1.5~2배, 사이클 전비 이득은 WLTP +0.28%</td><td>고속은 G1 영향권(낙관 가능)</td></tr>
+</table>
+
+<h2>6. 화면 (P4)</h2>
 <p>React + react-three-fiber 3D 스튜디오: 출처 있는 치수로 그린 모터를 분해·단면으로 보고, FEA 자속 분포, 운전점(전류·전압·손실·효율), 드라이브 모드 전비를 확인한다. 출처가 없는 부품(단자부, 레졸버, 베어링)은 "도식"으로 표시한다. Electron 셸로 데스크톱 앱 창을 연다.</p>
 
-<h2>6. 이 프로젝트가 보이려는 것</h2>
+<h2>7. 이 프로젝트가 보이려는 것</h2>
 <ul>
 <li>설계 변수에서 차량 전비까지 하나의 추적 가능한 계산 사슬.</li>
 <li>모든 숫자에 출처가 있고, 맞지 않는 결과도 원인 탐색 과정과 함께 기록.</li>
 <li>본인이 모든 수식과 코드를 설명할 수 있도록 <code>docs/derivations.md</code>에 유도를 정리.</li>
 </ul>
 
-<h2>7. 링크</h2>
+<h2>8. 링크</h2>
 <table>
 <tr><td>저장소 README</td><td><code>README.md</code></td></tr>
 <tr><td>검증 보고서</td><td><code>docs/validation_report.md</code></td></tr>
