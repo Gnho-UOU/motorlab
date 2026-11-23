@@ -1,0 +1,10 @@
+# 출처: ORNL/TM-2005/33 "Report on Toyota Prius Motor Thermal Management" (data/benchmarks/raw/ornl_pub57487_thermal.pdf), 표 7~10 (보고서 15~17쪽)과 표 16(31쪽).
+# 시험: THS II 전체 기어 포함, 900 rpm, 60 Hz 정현파 전원(인버터 없음), 냉각수 입구 4단계, 권선 온도 170 °C 근처에서 평형(0.5시간 이상 유지), 외기 약 24 °C(요약 5쪽).
+# 단위: coolant_in_C [°C], torque_Nm [N·m], loss_*_W [W], T_winding_C [°C, 열전대 3개 중 표 9의 최종값(최고 쪽)], T_oil_C [°C, 윤활유], dT_coolant_K = (냉각수 출구 − 입구) [K, 표 9], flow_gpm [US gal/min, 표 9]
+# loss_total = loss_mech + loss_I2R + loss_core (표 10). loss_core는 총손실에서 기계손과 동손을 뺀 잔여라 철손 외 잔여 손실을 포함한다.
+# 원문 요약: 열교환기가 35 °C 냉각수에서 모터 총 손실의 약 76%를, 75 °C에서 약 38%를 방출하고 105 °C에서는 냉각 대신 하우징에 열을 더한다(요약 5쪽).
+coolant_in_C,torque_Nm,loss_total_W,loss_mech_W,loss_I2R_W,loss_core_W,T_winding_C,T_oil_C,dT_coolant_K,flow_gpm
+34.6,167.3,2202,160,1019,1023,166.0,114.3,3.0,2.4
+49.5,159.6,2048,160,935,952,167.2,118.5,2.3,2.4
+73.9,145.7,1778,160,801,817,168.4,125.3,1.2,2.4
+103.5,117.8,1278,151,560,567,166.3,130.3,-0.6,2.4

@@ -1,0 +1,66 @@
+{
+ "__source__": "ORNL/TM-2005/33 (data/benchmarks/raw/ornl_pub57487_thermal.pdf)로 보정한 2노드(권선, 고정자 철심) 열회로. 보정 방법은 data/thermal/fit_lptn.py 머리말.",
+ "parameters": {
+  "C_winding_J_per_K": {
+   "value": 2618.0,
+   "source": "구리 질량 6.8 kg(ORNL/TM-2010/253 표 2.7) × 385 J/(kg·K)(Incropera 표 A.1). 문헌값, 맞추지 않음"
+  },
+  "C_stator_J_per_K": {
+   "value": 8515.35,
+   "source": "고정자 적층 질량 19.05 kg(ORNL/TM-2010/253) × 447 J/(kg·K)(Incropera 표 A.1 순철). 문헌값, 맞추지 않음"
+  },
+  "G_winding_stator_W_per_K": {
+   "value": 183.85,
+   "source": "그림 19 첨두 시험 5곡선에 맞춤 (RMS 1.50 K, 철심 초기 온도는 곡선마다 맞춤)"
+  },
+  "G_stator_boundary_W_per_K": {
+   "value": 40.87,
+   "source": "연속 시험 4점(표 9·10)의 평형에서 구함: 기름 온도를 경계로 둔 철심 → 기름 열전도도의 평균(네 값 34~44 W/K)"
+  },
+  "R21_ohm": {
+   "value": 0.069,
+   "source": "ORNL/TM-2010/253 표 2.7, 21 °C의 상저항 0.069 Ω"
+  },
+  "alpha_cu_per_K": {
+   "value": 0.00393,
+   "source": "구리의 저항 온도계수 0.00393 /K (benchmarks 효율 검증과 같은 값)"
+  },
+  "boundary_fit_C": {
+   "value": 122.1,
+   "source": "보정에 쓴 외부 경계 온도 = 연속 시험 기름 최종 온도 4점의 평균(114.3, 118.5, 125.3, 130.3 °C). 그림 19 시험의 실제 기름 온도는 측정 자료에 없다"
+  }
+ },
+ "fit_initial_stator_C": {
+  "265": 98.4,
+  "300": 104.7,
+  "320": 74.8,
+  "335": 60.5,
+  "344": 26.8
+ },
+ "provenance": {
+  "fit_rms_K": 1.5,
+  "boundary_sensitivity": {
+   "80.0": {
+    "G_ws": 101.9,
+    "G_sb": 44.9,
+    "rms_K": 1.12
+   },
+   "100.0": {
+    "G_ws": 129.1,
+    "G_sb": 42.9,
+    "rms_K": 1.26
+   },
+   "115.0": {
+    "G_ws": 162.6,
+    "G_sb": 41.5,
+    "rms_K": 1.41
+   },
+   "122.1": {
+    "G_ws": 183.9,
+    "G_sb": 40.9,
+    "rms_K": 1.5
+   }
+  },
+  "note": "철심 초기 온도(곡선마다 하나)는 측정되지 않아 맞춘 값이다. T_b 80~122 °C에서 G_ws는 바뀌므로(boundary_sensitivity) 5~10초 안의 짧은 시험으로는 철심·외부 경계 매개변수를 따로 가르지 못한다."
+ }
+}

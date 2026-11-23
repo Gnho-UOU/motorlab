@@ -171,3 +171,12 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `run_nsga2(model, space, pop, gens, seed)`: `model(X) -> (F, G)`를 NSGA-II(pymoo)로 풀어 비지배 해 `(X, F, G)`를 돌려준다. 같은 seed면 같은 결과.
 - 평가기(예제 모터): 설계 변수 5개(V자 자석 두께·길이·각, 평평한 자석 두께·반길이), 목적 = 토크 최대(β를 최적화한 평균 토크 T*) · 자석 면적 최소, 제약 = 단자 전압 ≤ (2/π)·680 = 433 V, 150 °C N45SH 감자 여유 ≥ 0.05, 형상 타당성(`example_motor.geometry_ok`: 철 웹 ≥ 1.5 mm, 자석 겹침 없음). 후보는 대리모델 예측에 표준편차 한 개만큼 불리하게 제약을 적용해 고르고, 파레토 해는 FEA로 직접 평가한 설계에서만 뽑는다.
 - 테스트: `tests/test_p5_optimize.py`(설계 공간, 라틴 하이퍼큐브, 파레토·초체적, GP 보간과 LOO, NSGA-II 재현성·알려진 파레토 전선), `tests/test_design_opt.py`(포물선 꼭짓점, 자석 면적, 감자 프로브 위치, 타당한 표본).
+
+## 5-5. M7: 열 모델 (`thermal.py`, 구현됨)
+
+- `ThermalNetwork(names, C, G, Gb)`: 노드 열용량 C [J/K], 노드 사이 열전도도 G [W/K](대칭), 경계 열전도도 Gb [W/K]. `steady_state(P, T_b)`, `step(T, P, T_b, dt)`(P, T_b 일정할 때 행렬 지수함수로 정확한 한 걸음). 비대칭 G, 열용량 ≤ 0, 경계 경로 없음은 `ValueError`.
+- `load_lptn("prius2004") -> LPTNParams`: `data/thermal/prius2004_lptn.json`(값마다 source, 보정 진단). `params.network()`는 권선 · 고정자 철심 2노드, `R_winding(T) = R21·(1 + α_cu·(T − 21))`.
+- `simulate_cycle_copper(params, t, I, P_other, T_b, T_w0, T_s0, current_is_rms)`: 전류 시계열로 온도를 적분하고 동손을 하위 구간(1 s)마다 현재 권선 온도의 저항으로 다시 계산(온도 되먹임). 에너지 합 `E_copper_J`.
+- `cycle_thermal(result, params, T_b, T_start, R_map, T_map)`: `run_cycle` 결과의 구간별 전류·손실로 온도를 구하고 맵 저항과의 차이 `ΔP_cu = 1.5·(R(T_w) − R_map)·I²`를 전비에 되먹임한 `E_net_J`, `km_per_kWh`.
+- 보정: `data/thermal/fit_lptn.py`(일회성). 자료: `prius2004_steady.csv`(ORNL 표 9·10), `prius2004_peak_winding_transient.csv`(ORNL 그림 19). 테스트 `tests/test_p5_thermal.py`(해석해, 에너지 보존, 정상상태, 정확한 합성, ORNL 비교, 되먹임).
+- 한계와 오차는 `docs/validation_report.md` M7 절. 자석 노드 없음, 외부 경계 온도는 입력.
