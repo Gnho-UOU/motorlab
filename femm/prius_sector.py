@@ -1,6 +1,6 @@
 """2004 Prius 구동모터의 1극(45°) 섹터 FEMM 모델 생성기. (FEMM 또는 xfemm `femmcli`에서 실행)
 
-형상·재료 값은 data/benchmarks/prius2004_geometry_ornl_pocket.json (ORNL 값 + 포켓 가설)에서 읽는다. PRIUS_GEOMETRY 환경변수로 다른 파일을 고를 수 있다(구형상: prius2004_geometry.json). 점 좌표 정의는 pyleecan(Apache-2.0)의
+형상·재료 값은 data/benchmarks/prius2004_geometry_teardown.json (ORNL 해체 치수 + 교정 Br)에서 읽는다. PRIUS_GEOMETRY 환경변수로 다른 파일을 고를 수 있다(구형상: prius2004_geometry.json). 점 좌표 정의는 pyleecan(Apache-2.0)의
 SlotW11(고정자 슬롯), HoleM50(회전자 V자 구멍) 정의를 옮겼다. 이 모터는 8극이라 일부 섹터만 모델링한다. poles=2(기본): N·S극 한 쌍(90°, 12슬롯)을 주기(periodic) 경계로 닫는다 — xfemm이
 자체 벤치마크로 검증한 경로다. poles=1: 한 극(45°)을 반대칭 경계로 닫는다(xfemm에서 결과가 일관되지 않아 쓰지 않는다). 회전자 위치는 공극 요소(AGE)의 안쪽 각도로 바꾸므로 메시를 다시 만들 필요가 없다.
 
@@ -20,7 +20,7 @@ import numpy as np
 from scipy.optimize import fsolve
 
 import os
-GEOMETRY_JSON = Path(os.environ.get("PRIUS_GEOMETRY") or Path(__file__).resolve().parents[1] / "data" / "benchmarks" / "prius2004_geometry_ornl_pocket.json")
+GEOMETRY_JSON = Path(os.environ.get("PRIUS_GEOMETRY") or Path(__file__).resolve().parents[1] / "data" / "benchmarks" / "prius2004_geometry_teardown.json")
 MU0 = 4e-7 * math.pi
 
 

@@ -6,7 +6,7 @@
 (2) 잔여 손실이 자속에 비례하는지 전류에 비례하는지.
     같은 동작점(측정 전류, 풀린 β)의 모델 자속 |ψ|와 측정 전류로 잔여 손실 = P_ac − P_mech − 동손(측정 전류) − 무부하 실측 손실을 회귀한다.
     ORNL 제어기는 id를 바꿔 효율이 가장 높은 점을 골랐으므로, 손실이 자속에 의존하면 약계자가 더 깊은 점(전류가 큰 점)이 선택될 수 있다.
-입력: data/benchmarks/prius2004_perf_map.csv, prius2004_rotor_loss.csv, data/flux_maps/prius2004_fullmodel_pocket_25A.csv
+입력: data/benchmarks/prius2004_perf_map.csv, prius2004_rotor_loss.csv, data/flux_maps/prius2004_fullmodel_teardown_25A.csv
 실행: python notebooks/08_prius_high_speed_current.py
 """
 import math
@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 from engine.model import FluxMapModel  # noqa: E402
 
 MECH = (0.44058, 7.7652e-7)           # TM-423 표 3.7 로터 손실 피팅 (notebooks/03)
-R20, ALPHA = 0.065, 0.00393
+R20, ALPHA = 0.069 / (1 + 0.00393), 0.00393      # R(21 °C) = 0.069 Ω (ORNL/TM-2010/253 표 2.7)
 
 
 def load_csv(path):
@@ -34,7 +34,7 @@ def load_csv(path):
 def main() -> None:
     c = load_csv(ROOT / "data/benchmarks/prius2004_perf_map.csv")
     rl = load_csv(ROOT / "data/benchmarks/prius2004_rotor_loss.csv")
-    m = FluxMapModel.from_csv(ROOT / "data/flux_maps/prius2004_fullmodel_pocket_25A.csv", p=4, Rs=0.0)
+    m = FluxMapModel.from_csv(ROOT / "data/flux_maps/prius2004_fullmodel_teardown_25A.csv", p=4, Rs=0.0)
     rows = []
     for i in np.nonzero(c["speed_rpm"] >= 3000)[0]:
         sp = c["speed_rpm"][i]

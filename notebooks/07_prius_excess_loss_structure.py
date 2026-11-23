@@ -1,10 +1,10 @@
 """측정 손실에서 모델이 설명하지 못하는 부분(잔여 손실)의 구조를 본다. (docs/validation_report.md "원인 탐색" 절)
 
-잔여 = (P_ac − P_mech) − 동손(R20 = 65 mΩ, 모델 동작점 전류) − 무부하 실측 손실(TM-423 표 3.7)
+잔여 = (P_ac − P_mech) − 동손(R20 = 68.7 mΩ, 모델 동작점 전류) − 무부하 실측 손실(TM-423 표 3.7)
   1) 잔여를 토크로 환산(잔여 / ω)해 속도·토크 칸마다 중앙값을 본다.
   2) 무부하 손실을 자속 크기로 키우는 변형(V3, (|ψ|/|ψ0|)^β)이 잔여를 줄이는지 본다.
   3) 3000 rpm 미만 행에서 잔여 = ω·(a + b·T) (마찰 토크 + 출력 비례)로 설명되는지, 그 위에서 무엇이 남는지 본다.
-입력: data/fea/prius2004_efficiency_variants.csv (05번 노트북 출력, 행마다 모델 동작점), data/flux_maps/prius2004_fullmodel_pocket_25A.csv.
+입력: data/fea/prius2004_efficiency_variants.csv (05번 노트북 출력, 행마다 모델 동작점), data/flux_maps/prius2004_fullmodel_teardown_25A.csv.
 실행: python notebooks/07_prius_excess_loss_structure.py
 """
 import math
@@ -29,7 +29,7 @@ def main() -> None:
     perf = load_csv(ROOT / "data/benchmarks/prius2004_perf_map.csv")
     v = load_csv(ROOT / "data/fea/prius2004_efficiency_variants.csv")
     rl = load_csv(ROOT / "data/benchmarks/prius2004_rotor_loss.csv")
-    m = FluxMapModel.from_csv(ROOT / "data/flux_maps/prius2004_fullmodel_pocket_25A.csv", p=4, Rs=0.0)
+    m = FluxMapModel.from_csv(ROOT / "data/flux_maps/prius2004_fullmodel_teardown_25A.csv", p=4, Rs=0.0)
     key = {(round(a, 1), round(b, 1)): i for i, (a, b) in enumerate(zip(perf["speed_rpm"], perf["torque_Nm"]))}
     idx = np.array([key[(round(a, 1), round(b, 1))] for a, b in zip(v["speed_rpm"], v["torque_Nm"])])
     sp, T = v["speed_rpm"], v["torque_Nm"]

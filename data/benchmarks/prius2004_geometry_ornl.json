@@ -1,6 +1,6 @@
 {
  "__source__": {
-  "what": "2004 Toyota Prius 구동모터 형상·재료. pyleecan 값을 바탕으로 하되 ORNL 원문에 있는 값으로 덮어썼다. 덮어쓴 항목과 출처는 overrides에 있다.",
+  "what": "TM-217 집중 정수 모델 치수(자석 5.31 mm)를 쓴 형상(쓰지 않음): 해체 측정과 자석 두께가 다르다. 기록용. 원래 설명: 2004 Toyota Prius 구동모터 형상·재료. pyleecan 값을 바탕으로 하되 ORNL 원문에 있는 값으로 덮어썼다. 덮어쓴 항목과 출처는 overrides에 있다.",
   "base_file": "prius2004_geometry.json (pyleecan Toyota_Prius.json, 제3자 모델, 출처 표기 없음)",
   "overrides": {
    "stator.L1_m, rotor.L1_m": "0.08357 m — Staunton 외, ORNL/TM-2004/217 표 5.3 'Lamination stack length' 83.57 mm (pub57397.pdf p.28). 기존 83.82 mm는 TM-2004/137의 3.3 in 환산값이었다.",

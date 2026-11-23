@@ -1,22 +1,22 @@
 {
  "what": "경험적 잔여 손실 P = k_f·f + k_c·Is_rms²·f² 의 계수 (물리 기구 미규명, ORNL Table B-1 효율 행에 맞춘 값)",
- "k_f_W_per_Hz": 3.497550642808358,
- "k_c_W_per_A2Hz2": 5.534271990477336e-06,
+ "k_f_W_per_Hz": 3.5037273382403833,
+ "k_c_W_per_A2Hz2": 4.888736729301801e-06,
  "fit": {
-  "flux_map": "prius2004_fullmodel_pocket_25A.csv",
-  "rows": 377,
+  "flux_map": "prius2004_fullmodel_teardown_25A.csv",
+  "rows": 380,
   "weights": "1/P_mech(측정 샤프트 출력)",
-  "baseline_loss": "동손(R20 = 65 mΩ, α = 0.00393) + 무부하 실측 손실(TM-423 표 3.7 피팅)",
+  "baseline_loss": "동손(R20 = 68.7 mΩ, α = 0.00393) + 무부하 실측 손실(TM-423 표 3.7 피팅)",
   "Is_rms": "모델 동작점(전류 최소)의 |Is|/√2, 측정 전류가 아님"
  },
  "validation": {
-  "all_rows_mean_delta_eta_pp": -0.23298171691865077,
-  "all_rows_rms_pp": 1.322637000607367,
-  "core_region_mean_pp": 0.13965477001168844,
-  "core_region_within_3pp": 0.9891891891891892,
-  "random_half_holdout_rms_pp": 1.3442454601278282,
-  "extrapolate_lt3000_to_ge3000_rms_pp": 3.215942118143114
+  "all_rows_mean_delta_eta_pp": -0.28769548621686436,
+  "all_rows_rms_pp": 1.4656249718298426,
+  "core_region_mean_pp": 0.19644426016185607,
+  "core_region_within_3pp": 0.9783783783783784,
+  "random_half_holdout_rms_pp": 1.4919862713032392,
+  "extrapolate_lt3000_to_ge3000_rms_pp": 3.6770778268719546
  },
- "limits": "ORNL 시험의 속도·전류 범위(500~6100 rpm, 250 A 이하) 안에서만 쓴다. 3000 rpm 미만 행만으로 맞춘 계수는 그 이상 속도에서 평균 +2.9%p 편향된다(k_c 항을 식별하지 못함).",
+ "limits": "ORNL 시험의 속도·전류 범위(500~6100 rpm, 250 A 이하) 안에서만 쓴다. 3000 rpm 미만 행만으로 맞춘 계수는 그 이상 속도에서 평균 +3.3%p 편향된다(k_c 항을 식별하지 못함).",
  "script": "notebooks/05_prius_loss_variants.py"
 }

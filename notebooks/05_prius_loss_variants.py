@@ -35,7 +35,7 @@ from engine.losses import loss_breakdown  # noqa: E402
 from engine.model import FluxMapModel  # noqa: E402
 from engine.operating import Limits, optimal_current  # noqa: E402
 
-MAP = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "flux_maps" / "prius2004_fullmodel_ornl_25A.csv"
+MAP = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "data" / "flux_maps" / "prius2004_fullmodel_teardown_25A.csv"
 OUT = ROOT / "data" / "fea" / "prius2004_efficiency_variants.csv"
 OUT_JSON = ROOT / "data" / "fea" / "prius2004_excess_loss_fit.json"
 _model: FluxMapModel | None = None
@@ -129,7 +129,7 @@ def main() -> None:
     OUT_JSON.write_text(json.dumps({
         "what": "경험적 잔여 손실 P = k_f·f + k_c·Is_rms²·f² 의 계수 (물리 기구 미규명, ORNL Table B-1 효율 행에 맞춘 값)",
         "k_f_W_per_Hz": float(coef[0]), "k_c_W_per_A2Hz2": float(coef[1]),
-        "fit": {"flux_map": MAP.name, "rows": int(len(sp)), "weights": "1/P_mech(측정 샤프트 출력)", "baseline_loss": "동손(R20 = 65 mΩ, α = 0.00393) + 무부하 실측 손실(TM-423 표 3.7 피팅)",
+        "fit": {"flux_map": MAP.name, "rows": int(len(sp)), "weights": "1/P_mech(측정 샤프트 출력)", "baseline_loss": "동손(R20 = 68.7 mΩ, α = 0.00393) + 무부하 실측 손실(TM-423 표 3.7 피팅)",
                 "Is_rms": "모델 동작점(전류 최소)의 |Is|/√2, 측정 전류가 아님"},
         "validation": {"all_rows_mean_delta_eta_pp": float(dE.mean()), "all_rows_rms_pp": float(np.sqrt((dE ** 2).mean())),
                        "core_region_mean_pp": float(dE[core].mean()), "core_region_within_3pp": float(np.mean(np.abs(dE[core]) <= 3)),

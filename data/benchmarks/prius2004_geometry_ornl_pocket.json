@@ -1,6 +1,6 @@
 {
  "__source__": {
-  "what": "2004 Toyota Prius 구동모터 형상·재료 (ORNL 값 + 포켓 가설). 자석 5.31 mm가 6.5 mm 포켓 안에 있고 아래 1.19 mm는 공기라고 가정한 후보 형상.",
+  "what": "기각된 가설 형상(쓰지 않음): TM-2010/253 해체 측정이 자석이 6.5 mm 두께 전체임을 확인했다. 기록용. 원래 설명: 2004 Toyota Prius 구동모터 형상·재료 (ORNL 값 + 포켓 가설). 자석 5.31 mm가 6.5 mm 포켓 안에 있고 아래 1.19 mm는 공기라고 가정한 후보 형상.",
   "base_file": "prius2004_geometry.json (pyleecan Toyota_Prius.json, 제3자 모델, 출처 표기 없음)",
   "overrides": {
    "stator.L1_m, rotor.L1_m": "0.08357 m — Staunton 외, ORNL/TM-2004/217 표 5.3 'Lamination stack length' 83.57 mm (pub57397.pdf p.28). 기존 83.82 mm는 TM-2004/137의 3.3 in 환산값이었다.",
