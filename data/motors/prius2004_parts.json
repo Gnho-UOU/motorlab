@@ -1,0 +1,109 @@
+{
+ "__source__": "부품 도감: 숫자는 모두 출처를 단 ORNL 문서 값이다(data/benchmarks/prius2004_ornl.md). 설명 문장은 일반적인 전동기 공학 지식이고 이 모터에 대한 측정 값이 아니다. 치수 출처가 없는 부품은 dimensions_sourced = false로 표시하고 화면에서 '도식'이라고 밝힌다.",
+ "parts": [
+  {
+   "id": "housing", "name": "하우징 (워터재킷 케이스)", "name_en": "Housing / water-jacket case",
+   "role": "고정자를 잡아 주고 열을 냉각수로 내보내는 바깥 껍데기",
+   "story": "모터가 내는 열은 대부분 고정자 권선과 철심에서 나옵니다. 하우징은 고정자를 압입으로 붙잡고, 그 열을 냉각수가 흐르는 케이스 벽으로 넘깁니다. 이 모터는 권선에 오일을 직접 뿌려 식히는 방식도 함께 쓴다고 ORNL이 적었습니다.",
+   "specs": [
+    {"label": "케이스 지름", "value": "29.9 cm", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "케이스 축 길이", "value": "20.5 cm", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "케이스 질량 (레졸버·펌프 등 포함)", "value": "8.9 kg", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "냉각", "value": "냉각수 열교환기 + 권선 오일 직접 냉각", "source": "ORNL/TM-2005/33 (열관리 보고서), ORNL/TM-2004/185 개정판"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "stator_core", "name": "고정자 철심", "name_en": "Stator core",
+   "role": "자속이 지나가는 길이고 권선이 들어가는 48개 슬롯을 가진 얇은 강판 더미",
+   "story": "철심을 두꺼운 덩어리가 아니라 얇은 강판을 쌓아 만드는 까닭은 와전류 손실을 줄이기 위해서입니다. 강판 한 장 한 장이 절연되어 있어 판 안에서만 작은 전류가 돌고, 판이 얇을수록 손실이 줄어듭니다. 슬롯 입구(개구)가 좁을수록 공극 자속이 부드럽게 변하지만 권선을 넣기 어려워집니다.",
+   "specs": [
+    {"label": "슬롯 수", "value": "48", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "강판 두께", "value": "0.33 mm", "source": "ORNL/TM-2010/253 표 2.7 (TM-2004/137은 0.014 in = 0.356 mm)"},
+    {"label": "철심 질량 (라미네이션만)", "value": "19.05 kg", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "적층 길이", "value": "83.6 mm", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "슬롯 개구", "value": "1.93 mm", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "바깥 반지름", "value": "134.62 mm", "source": "ORNL/TM-2004/217 표 5.3"},
+    {"label": "공극 (고정자-회전자 간격)", "value": "0.73 mm", "source": "ORNL/TM-2010/253 표 2.7"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "windings", "name": "고정자 권선", "name_en": "Stator windings",
+   "role": "3상 전류를 흘려 회전 자기장을 만드는 구리 코일",
+   "story": "A, B, C 세 상의 전류가 120°씩 어긋나 흐르면 고정자 안쪽에서 자기장이 돌아갑니다. 코일이 슬롯 밖으로 나온 부분을 엔드턴(코일 머리)이라고 하는데, 토크를 만들지 못하고 구리 손실만 늘리므로 짧을수록 좋습니다. 이 모터는 코일이 슬롯 6칸을 건너뛰어 감깁니다.",
+   "specs": [
+    {"label": "코일당 턴 수", "value": "9", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "상당 직렬 코일", "value": "8", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "병렬 소선", "value": "13가닥, 19 AWG", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "고정자 구리 질량", "value": "6.8 kg", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "상 저항 (21 °C)", "value": "0.069 Ω", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "엔드턴 돌출 (한쪽)", "value": "약 1.5 in = 38.1 mm", "source": "ORNL/TM-2004/137 7~8쪽"},
+    {"label": "슬롯 점적률", "value": "0.84", "source": "ORNL/TM-2004/137 7쪽"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "rotor_core", "name": "회전자 철심", "name_en": "Rotor core",
+   "role": "자석을 V자로 품고 자속을 모아 주는 철심",
+   "story": "자석을 철심 안에 묻은 구조(IPM)에서는 자석이 만드는 힘 말고도, 철심의 돌극성 때문에 생기는 릴럭턴스 토크가 더해집니다. 자석 끝에는 공기 구멍을 두어 자속이 자석 끝으로 새는 것을 줄입니다. 브리지(자석과 표면 사이의 얇은 철)는 일부러 얇게 해서 일찍 포화되게 합니다.",
+   "specs": [
+    {"label": "극 수", "value": "8 (극쌍 4)", "source": "ORNL/TM-2004/185 (8극 모터)"},
+    {"label": "바깥 지름", "value": "약 160.4 mm (반지름 80.19 mm)", "source": "ORNL/TM-2004/217 표 5.3"},
+    {"label": "회전자 질량 (축 포함)", "value": "10.2 kg", "source": "ORNL/TM-2010/253 표 2.7"},
+    {"label": "브리지 폭", "value": "1.45 mm (집중 정수 모델 입력)", "source": "ORNL/TM-2004/217 표 5.3"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "magnets", "name": "영구자석 (NdFeB)", "name_en": "Permanent magnets",
+   "role": "회전자에 묻힌 16개의 네오디뮴 자석: 모터의 '고정된 자기장'",
+   "story": "한 극마다 자석 두 장이 V자로 놓여 자속을 모읍니다. 네오디뮴 자석은 강하지만 온도가 오르면 약해지고, 전류로 반대 자기장을 너무 강하게 걸면(약계자) 되돌릴 수 없게 감자될 수 있습니다. ORNL이 측정한 시료 곡선보다 모터 안의 자석이 약 15% 약하게 행동한다는 점이 이 프로젝트의 검증에서 확인되었고, 이유는 아직 모릅니다.",
+   "specs": [
+    {"label": "자석 한 장", "value": "83.1 × 18.9 × 6.5 mm, 77 g", "source": "ORNL/TM-2010/253 본문 45쪽"},
+    {"label": "개수와 총 질량", "value": "16개, 1.232 kg", "source": "ORNL/TM-2010/253 본문 45쪽"},
+    {"label": "자석 종류", "value": "소결 NdFeB로 보임", "source": "ORNL/TM-2004/137 11쪽"},
+    {"label": "잔류자속밀도 (시료 곡선)", "value": "1.243 T (모델 보정값 1.06 T)", "source": "TM-2004/137 그림 14 디지털화, 보정은 docs/FEA_OPTIONS.md 3-6절"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "shaft", "name": "축과 스플라인", "name_en": "Shaft",
+   "role": "회전자의 토크를 감속기어로 내보내는 축",
+   "story": "모터 축은 감속기어를 거쳐 바퀴로 이어집니다. 모터 회전수는 차속(mph)의 60.66배(rpm)라고 ORNL이 적었고, 그래서 약 100 km/h에서 모터는 약 3800 rpm으로 돕니다.",
+   "specs": [
+    {"label": "모터 회전수 / 차속", "value": "60.66 rpm per mph", "source": "ORNL/TM-2006/423 3.2절 각주 3"},
+    {"label": "축 반지름 (링 제외)", "value": "50.46 mm (집중 정수 모델 입력)", "source": "ORNL/TM-2004/217 표 5.3"}
+   ],
+   "dimensions_sourced": true
+  },
+  {
+   "id": "terminal", "name": "3상 단자부 (버스바)", "name_en": "Terminal / busbars",
+   "role": "인버터의 3상 고전압 케이블이 모터 권선에 이어지는 곳",
+   "story": "인버터가 만든 A, B, C 상 전압이 이곳을 지나 권선으로 들어갑니다. 이 모터의 역기전력은 6000 rpm에서 피크 850 V까지 오르므로 절연 요구가 높다고 ORNL이 적었습니다. 이 화면의 단자부 모양은 도식이고 실제 치수 자료는 찾지 못했습니다.",
+   "specs": [
+    {"label": "역기전력 (6000 rpm, 첨두)", "value": "850 V", "source": "ORNL/TM-2004/185"},
+    {"label": "DC 링크 전압 (시험)", "value": "약 500 V", "source": "ORNL/TM-2006/423 부록 B 표 B-1"}
+   ],
+   "dimensions_sourced": false
+  },
+  {
+   "id": "resolver", "name": "레졸버 (회전각 센서)", "name_en": "Resolver",
+   "role": "회전자의 정확한 각도를 읽어 인버터가 전류 위상을 맞추게 하는 센서",
+   "story": "영구자석 동기 모터는 회전자의 자극 위치를 알아야 전류를 알맞은 각도로 흘릴 수 있습니다. 레졸버는 회전 변압기처럼 동작해 각도를 사인·코사인 신호로 줍니다. ORNL은 잠금 회전자 시험에서 순정 레졸버로 회전자 위치를 읽었다고 적었습니다. 이 화면의 모양은 도식이고 치수 자료는 없습니다.",
+   "specs": [
+    {"label": "사용", "value": "순정(OEM) 레졸버로 회전자 위치 측정", "source": "ORNL/TM-2004/247 개정판 3.2.1절"}
+   ],
+   "dimensions_sourced": false
+  },
+  {
+   "id": "bearings", "name": "베어링", "name_en": "Bearings",
+   "role": "회전자를 0.73 mm의 좁은 공극 안에 정확히 띄워 주는 부품",
+   "story": "공극이 0.73 mm밖에 안 되기 때문에 회전자가 조금만 기울어도 고정자에 닿습니다. 베어링의 마찰과 오일 끌림은 모터 무부하 손실의 한 부분입니다. 이 화면의 모양은 도식이고 치수 자료는 없습니다.",
+   "specs": [
+    {"label": "공극", "value": "0.73 mm", "source": "ORNL/TM-2010/253 표 2.7"}
+   ],
+   "dimensions_sourced": false
+  }
+ ]
+}

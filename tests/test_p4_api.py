@@ -74,7 +74,7 @@ def test_cycle_energy_balance_and_regen():
     assert 8.0 < r1["km_per_kWh"] < 12.0 and r0["km_per_kWh"] < r1["km_per_kWh"]
     assert r1["wh_per_km"] == pytest.approx(1000 / r1["km_per_kWh"], rel=1e-9)
     ts = r1["series"]
-    assert 100 <= len(ts["t_s"]) <= 700 and len(ts["speed_kmh"]) == len(ts["t_s"]) == len(ts["motor_rpm"]) == len(ts["torque_Nm"])
+    assert 100 <= len(ts["t_s"]) <= 2000 and len(ts["speed_kmh"]) == len(ts["t_s"]) == len(ts["motor_rpm"]) == len(ts["torque_Nm"])
     assert r1["shortfall"]["wheel_energy_fraction"] < 0.02
     assert "모터 입력" in r1["scope_note"]
 

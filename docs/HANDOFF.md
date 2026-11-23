@@ -49,6 +49,14 @@
 - 미해결: 고속 필요 전류 엔진/측정 0.72~0.77(모델 전압이 한계의 0.75배), 높은 부하에서 정현파 시험 전류가 모델보다 작음(슬롯 면적·강판 포화 후보), 슬롯 면적 불일치(ORNL 철심 질량 기준 약 150 mm² 대 217.5 mm²).
 - 사용자 결정: 경험식 보정은 G1 충족으로 인정하지 않는다(2026-11-22). P4는 시작하지 않았다.
 
+## 2026-11-23 UI를 React 스튜디오로 교체 (P4)
+- 첫 초안(바닐라 TS, 단순 2D 위주)을 버리고 `web/`를 React + TypeScript + react-three-fiber로 새로 만들었다. 이유: 부품 해부·단면·투어·드라이브 모드처럼 상태가 많은 인터페이스는 컴포넌트 구조가 필요하고, 데스크톱(Electron)으로 같은 코드를 감싼다. Rust가 없어 Tauri 대신 Electron을 골랐다.
+- 3D: 출처 있는 치수(하우징 299 × 205 mm, 자석 83.1 × 18.9 × 6.5 mm, 엔드턴 38.1 mm 등)로 만든 실물형 모터. 해부 분해(부품별 순서), 부품 선택 시 카메라 비행과 부품 도감(`/api/parts`, 숫자마다 출처, 치수 출처 없는 부품은 "도식"), 단면(절단 위치 조절), FEA 자속선·자속밀도(`femm/export_flux_field.py` → `data/fea/flux_fields/*.json`).
+- 엔진·API 추가: `engine/waveforms.py`, `CycleResult` 구간별 손실·효율·전류, `/api/operating_point`, `/api/parts`, `/api/flux`, 권선·하우징 치수. 테스트 추가(`tests/test_p4_waveforms.py`, `test_p4_api_ext.py`).
+- 성능: 요청 시 렌더, 인스턴싱, 셰이더 적층 무늬·냉각수 입자, 적응형 해상도, Electron GPU 플래그. 속도 측정은 이 PC(헤드리스 브라우저 약 30 fps)에서만 했고 실제 GPU 앱 창의 fps는 측정하지 않았다.
+- 데스크톱: `web/electron/`(개발 모드 점검 완료), 설치 파일(DMG/EXE) 생성은 설정만 했고 검증하지 않았다(`scripts/build_sidecar.sh`).
+- 남은 것: 설치 파일 생성 검증, 부품별 더 정밀한 3D(치수 자료가 생기면), 하단 설계 A/B 비교, 데모 배포(외부 게시라 사용자 확인 필요), 컨택용 산출물.
+
 ## 2026-11-23 P4 시작 (G1 미달을 기록한 채, 사용자 결정)
 - M4: `engine/vehicle.py`(차량·사이클·전비, 테스트 13개), 사이클 데이터 `data/cycles/`(WLTC 3b는 UNECE GTR 15 표에서 추출·검산, UDDS·HWFET는 EPA), 차량 `data/vehicles/prius2004.json`(EPA 도로 부하·등가 질량, ORNL 60.66 rpm/mph, 기어 손실).
 - 서버: `api/main.py`(FastAPI, 테스트 13개). 효율맵·전비·형상 윤곽·검증 편차를 돌려주고 계산식은 없다. 모터 프리셋 `data/motors/prius2004.json`.

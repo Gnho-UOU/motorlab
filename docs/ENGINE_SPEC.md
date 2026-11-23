@@ -135,6 +135,8 @@ def efficiency_map(model, limits, T_grid, speed_grid, iron, mech, excess=None) -
 - `load_cycle(name)`: `WLTP`(클래스 3b), `UDDS`, `HWFET`. `data/cycles/*.csv`(출처·검산 거리 기록). `Cycle(t_s, v_ms, source)`.
 - `run_cycle(vehicle, eff_map, cycle, regen_ratio) -> CycleResult`: 구간 중점 적분으로 `E_in`, `E_regen`, `E_net`, 바퀴 구동·제동 에너지, 기어·모터 손실, 마찰 제동, `shortfall`(모터가 못 낸 몫), 시계열, `km_per_kWh`, `Wh_per_km`. 유도와 한계는 `docs/derivations.md` 11절.
 - `FluxMapModel`은 선형 보간을 numpy로 직접 구현(`_bilinear`, scipy와 같은 값)하고 `optimal_current_map`은 전류 격자의 자속을 속도마다 다시 구하지 않는다(`voltage_from_flux`). 효율맵 40×60이 1.5초다(기획서 G2).
+- `waveforms.py`: `phase_waveforms(id, iq, vd, vq, n)` — dq를 한 전기 주기의 3상 전류·전압(크기 불변 역 Park)과 전류각 β로 되돌린다. 화면의 3상 파형·위상자·권선 발광이 이 값을 쓴다(화면에 삼각함수 계산을 두지 않는다).
+- `CycleResult`의 구간별 배열: `loss_power_W`(모터 손실 동력), `efficiency`, `current_peak_A`(효율맵의 최소 전류 운전점을 보간). 드라이브 모드가 쓴다.
 - `magnet.py`, `optimize.py`: P5에서 설계.
 
 ## 6. 남은 결정 (구현 중 사용자와 확인)

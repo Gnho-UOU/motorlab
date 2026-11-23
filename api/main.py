@@ -8,6 +8,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import math
+import os
 import sys
 import time
 from functools import lru_cache
@@ -15,18 +16,19 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("MOTORLAB_ROOT") or Path(__file__).resolve().parents[1])     # 데스크톱 앱은 묶은 자원 폴더를 가리킨다
 sys.path.insert(0, str(ROOT / "femm"))
 import prius_sector as ps  # noqa: E402  (형상 점 좌표 정의: femm/, FEMM 자체는 부르지 않는다)
 
-from engine.losses import ExcessLossParams, MechParams, efficiency_map  # noqa: E402
+from engine.losses import ExcessLossParams, MechParams, efficiency_map, loss_breakdown  # noqa: E402
 from engine.model import FluxMapModel  # noqa: E402
-from engine.operating import Limits, base_speed, max_torque_curve  # noqa: E402
+from engine.operating import Limits, base_speed, max_torque_curve, optimal_current  # noqa: E402
+from engine.waveforms import phase_waveforms  # noqa: E402
 from engine.vehicle import load_cycle, load_vehicle, run_cycle  # noqa: E402
 
 RPM = 30 / math.pi
@@ -52,9 +54,8 @@ def _flux_model(name: str) -> FluxMapModel:
     return FluxMapModel.from_csv(ROOT / pr["flux_map"], p=pr["pole_pairs"], Rs=0.0)
 
 
-@lru_cache(maxsize=32)
-def _build(name, Vdc, Imax, winding_C, model, n_T, n_w, max_rpm):
-    """효율맵과 최대 토크 곡선. 같은 입력은 캐시한다."""
+def _motor(name, Vdc, Imax, winding_C, model):
+    """모델(권선 저항 온도 보정), 한계, 기계손, 잔여 손실 계수."""
     pr = _preset(name)
     w = pr["winding"]
     Rs = w["R_21C_ohm"] / (1 + w["alpha_per_K"] * (21.0 - 20.0)) * (1 + w["alpha_per_K"] * (winding_C - 20.0))
@@ -65,6 +66,13 @@ def _build(name, Vdc, Imax, winding_C, model, n_T, n_w, max_rpm):
     if model == "empirical":
         j = json.loads((ROOT / pr["excess_loss"]).read_text(encoding="utf-8"))
         excess = ExcessLossParams(k_f=j["k_f_W_per_Hz"], k_c=j["k_c_W_per_A2Hz2"])
+    return mdl, lim, mech, excess
+
+
+@lru_cache(maxsize=32)
+def _build(name, Vdc, Imax, winding_C, model, n_T, n_w, max_rpm):
+    """효율맵과 최대 토크 곡선. 같은 입력은 캐시한다."""
+    mdl, lim, mech, excess = _motor(name, Vdc, Imax, winding_C, model)
     speeds = np.linspace(2.0, max_rpm / RPM, n_w)
     coarse = np.linspace(speeds[0], speeds[-1], min(n_w, 30))        # 최대 토크 곡선은 점 30개로 풀고 격자 속도로 다시 샘플링한다(표시용)
     tc = max_torque_curve(mdl, lim, coarse)
@@ -174,6 +182,10 @@ def geometry(preset: Literal["prius2004"]):
         "rotor": {"outer_radius_mm": g["rotor"]["Rext_m"] * 1000, "inner_radius_mm": g["rotor"]["Rint_m"] * 1000,
                   "magnets_mm": [_outline(mag(low)), _outline(mag(up))], "pole_angle_offset_deg": 180.0 / g["rotor"]["Zh"]},
         "source": g["__source__"]["what"],
+        "winding": {"slot_layout": g["winding"]["slot_layout_first_12_slots"] * (g["stator"]["Zs"] // 12), "coil_pitch_slots": g["winding"]["coil_pitch_slots"],
+                    "turns_per_slot": g["winding"]["Ntcoil_turns_per_slot"], "end_winding_extension_mm": pr["end_winding_extension_mm"]["value"],
+                    "end_winding_source": pr["end_winding_extension_mm"]["source"]},
+        "housing": pr["housing"],
     }
 
 
@@ -202,7 +214,7 @@ def cycle(req: CycleReq):
                                   road_b_Ns_m=over.get("road_b_Ns_m", veh.road_b_Ns_m), road_c_Ns2_m2=over.get("road_c_Ns2_m2", veh.road_c_Ns2_m2))
     r = run_cycle(veh, em, load_cycle(req.cycle), req.regen_ratio)
     kwh = lambda j: float(j / 3.6e6)
-    step = max(1, math.ceil(len(r.t_s) / 600))
+    step = max(1, math.ceil(len(r.t_s) / 2000))                  # 드라이브 모드가 1초 간격 그대로 재생할 수 있게 거의 줄이지 않는다
     s = slice(None, None, step)
     drive = r.em_torque_Nm > 0
     return {
@@ -213,11 +225,80 @@ def cycle(req: CycleReq):
                        "friction_brake": kwh(r.E_friction_brake_J)},
         "shortfall": {"time_s": r.shortfall_time_s, "wheel_energy_fraction": float(r.shortfall_wheel_energy_J / max(r.E_wheel_traction_J, 1e-9))},
         "series": {"t_s": _clean(r.t_s[s]), "speed_kmh": _clean(r.v_ms[s] * 3.6), "motor_rpm": _clean(r.motor_speed_rad[s] * RPM),
-                   "torque_Nm": _clean(r.em_torque_Nm[s]), "elec_power_kW": _clean(r.elec_power_W[s] / 1000)},
+                   "torque_Nm": _clean(r.em_torque_Nm[s]), "elec_power_kW": _clean(r.elec_power_W[s] / 1000),
+                   "loss_kW": _clean(r.loss_power_W[s] / 1000), "efficiency": _clean(r.efficiency[s]), "current_A": _clean(r.current_peak_A[s])},
         "operating_points": {"motor_rpm": _clean(r.motor_speed_rad[drive] * RPM), "torque_Nm": _clean(r.em_torque_Nm[drive])},
         "scope_note": SCOPE_NOTE, "model_note": NOTE_PHYSICAL if req.model == "physical" else NOTE_EMPIRICAL,
         "validation": _validation(req.preset), "elapsed_ms": (time.perf_counter() - t0) * 1000,
     }
+
+
+
+class OpReq(BaseModel):
+    preset: Literal["prius2004"] = "prius2004"
+    speed_rpm: float = Field(2000.0, gt=0, le=12000)
+    torque_Nm: float = Field(100.0, gt=0, le=600)
+    Vdc: float = Field(500.0, gt=0, le=1000)
+    Imax: float = Field(250.0, gt=0, le=1000)
+    winding_C: float = Field(100.0, ge=-40, le=250)
+    model: Literal["physical", "empirical"] = "physical"
+
+
+@app.post("/api/operating_point")
+def operating_point(req: OpReq):
+    """(속도, 샤프트 토크)의 전류 최소 운전점과 전압·손실·효율·3상 파형. 모든 값은 엔진이 계산한다."""
+    mdl, lim, mech, excess = _motor(req.preset, req.Vdc, req.Imax, req.winding_C, req.model)
+    w = req.speed_rpm / RPM
+    p_mech = mech.a * w + mech.b * w**3
+    d, q, ok = optimal_current(mdl, lim, req.torque_Nm + p_mech / w, w)
+    if not ok:
+        return {"feasible": False, "reason": "이 속도에서 이 토크는 전류 한계 또는 전압 한계 안에서 낼 수 없다", "speed_rpm": req.speed_rpm, "torque_Nm": req.torque_Nm}
+    d, q = float(d), float(q)
+    lb = loss_breakdown(mdl, d, q, w, None, mech, excess)
+    vd, vq = (float(x) for x in mdl.voltage(d, q, mdl.p * w))
+    psi_d, psi_q = (float(x) for x in mdl.flux(d, q))
+    v_pk = math.hypot(vd, vq)
+    ratio = v_pk / lim.Vmax
+    wf = phase_waveforms(d, q, vd, vq, 120)
+    return {
+        "feasible": True, "speed_rpm": req.speed_rpm, "torque_Nm": req.torque_Nm, "em_torque_Nm": float(lb.T),
+        "id_A": d, "iq_A": q,
+        "current": {"peak_A": math.hypot(d, q), "rms_A": math.hypot(d, q) / math.sqrt(2), "beta_deg": wf["beta_deg"]},
+        "voltage": {"vd_V": vd, "vq_V": vq, "peak_V": v_pk, "ll_rms_V": v_pk * math.sqrt(3) / math.sqrt(2), "limit_peak_V": lim.Vmax, "ratio_to_limit": ratio},
+        "flux": {"psi_d_Wb": psi_d, "psi_q_Wb": psi_q, "psi_Wb": math.hypot(psi_d, psi_q)},
+        "power_W": {"shaft_out": float(lb.P_out), "input": float(lb.P_in), "loss_total": float(lb.P_in - lb.P_out), "copper": float(lb.P_cu),
+                    "iron": float(lb.P_fe), "mechanical": float(lb.P_mech), "excess": float(lb.P_excess)},
+        "efficiency": float(lb.eta), "mode": "전압 제한(약계자)" if ratio >= 0.985 else "전류 제한(MTPA)",
+        "waveforms": {k: (_clean(v) if isinstance(v, np.ndarray) else v) for k, v in wf.items()},
+        "model_note": NOTE_PHYSICAL if req.model == "physical" else NOTE_EMPIRICAL,
+    }
+
+
+@app.get("/api/parts")
+def parts():
+    """부품 도감. 숫자마다 출처가 있고, 치수 출처가 없는 부품은 dimensions_sourced = false이다."""
+    return json.loads((ROOT / "data" / "motors" / "prius2004_parts.json").read_text(encoding="utf-8"))
+
+
+_FLUX_STATES = ["noload", "mtpa150", "mtpa250", "fw"]
+
+
+@lru_cache(maxsize=8)
+def _flux(state: str) -> dict:
+    return json.loads((ROOT / "data" / "fea" / "flux_fields" / f"{state}.json").read_text(encoding="utf-8"))
+
+
+@app.get("/api/flux")
+def flux_list():
+    return {"states": [{k: _flux(s)[k] for k in ("state", "label", "id_A", "iq_A", "torque_Nm")} for s in _FLUX_STATES]}
+
+
+@app.get("/api/flux/{state}")
+def flux_field(state: str):
+    """FEA로 푼 자속 분포(벡터 퍼텐셜 A와 |B|). 시각화용이고 화면에서 계산하지 않는다."""
+    if state not in _FLUX_STATES:
+        raise HTTPException(status_code=404, detail=f"알 수 없는 상태 {state!r}")
+    return _flux(state)
 
 
 _dist = ROOT / "web" / "dist"

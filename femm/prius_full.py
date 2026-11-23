@@ -103,7 +103,7 @@ def build_full(g: dict, mesh: dict | None = None, rotor_deg: float = 0.0) -> Sec
 
 
 def _driver(i_abc: tuple[float, float, float], fem: str, probes: list[complex] | None = None) -> str:
-    probe_lines = [f'a, bx, by = mo_getpointvalues({z.real:.9g}, {z.imag:.9g})\nprint(format("BP %.9g %.9g", bx, by))'
+    probe_lines = [f'a, bx, by = mo_getpointvalues({z.real:.9g}, {z.imag:.9g})\nprint(format("BP %.9g %.9g %.9g", bx, by, a))'
                    for z in (probes or [])]    # xfemm: 반환 순서 A, B1(=Bx), B2(=By), ...
     return "\n".join([
         f'mi_modifycircprop("A", 1, {i_abc[0]:.12g})', f'mi_modifycircprop("B", 1, {i_abc[1]:.12g})',
@@ -141,7 +141,8 @@ def solve_one(i_abc: tuple[float, float, float], rotor_deg: float, mesh: dict | 
     v = [float(x) for x in rows[0][1:]]
     res = {"torque_Nm": v[0], "lambda_abc_Wb": np.array(v[1:4]), "nodes": v[4], "elements": v[5]}
     if probes:
-        res["B_xy_T"] = np.array([[float(x) for x in l.split()[1:]] for l in out.stdout.splitlines() if l.startswith("BP ")])
+        bp = np.array([[float(x) for x in l.split()[1:]] for l in out.stdout.splitlines() if l.startswith("BP ")])
+        res["B_xy_T"], res["A_Wb_per_m"] = bp[:, :2], bp[:, 2]        # B 성분과 벡터 퍼텐셜 A(자속선 = A의 등고선)
     return res
 
 

@@ -156,3 +156,29 @@ def test_prius_wltp_runs_and_balances():
     assert 0.70 < r.E_wheel_traction_J / r.E_in_J < 0.98
     assert r.E_net_J > r.E_wheel_traction_J - r.E_wheel_brake_J > 0         # 순 기계 일보다 전기 소비가 크다(손실)
     assert r.distance_m / 1000 == pytest.approx(23.27, abs=0.02)
+
+
+def test_loss_power_series_matches_energy_totals(model_rs, limits):
+    """시계열 손실 동력 [W]은 구동 구간의 적분이 E_motor_loss_J와 같고 음수가 아니며, 효율 시계열은 0~1이다. 손실 0이면 손실 시계열도 0이다."""
+    iron = IronParams(k_h=0.02, k_e=5e-5, beta=2.0, m_tooth=3.0, m_yoke=6.0, c_tooth=20.0, c_yoke=10.0)
+    lossy = efficiency_map(model_rs, limits, np.linspace(1.0, 140.0, 70), np.linspace(2.0, 420.0, 90), iron, MechParams(a=0.01, b=2e-8))
+    r = run_cycle(make_vehicle(), lossy, triangle(), regen_ratio=1.0)
+    dt = np.diff(triangle().t_s)
+    drive = r.em_torque_Nm > 0
+    assert np.all(r.loss_power_W >= -1e-9)
+    assert float(np.sum(r.loss_power_W[drive] * dt[drive])) == pytest.approx(r.E_motor_loss_J, rel=1e-9)
+    e = r.efficiency[np.isfinite(r.efficiency)]
+    assert e.size > 0 and np.all((e >= 0) & (e <= 1))   # 아주 작은 회생 동력은 손실에 먹혀 효율 0이 될 수 있다
+    assert np.all(np.isnan(r.efficiency[r.em_torque_Nm == 0]))
+
+
+def test_current_series_is_bounded_and_zero_when_idle(model_rs, limits):
+    """구간별 상전류 첨두값은 전류 한계 이하이고, 모터가 동작하지 않는 구간은 0이다. 같은 (T, ω)에서 맵의 값과 같다."""
+    lossy = efficiency_map(model_rs, limits, np.linspace(1.0, 140.0, 70), np.linspace(2.0, 420.0, 90), None, None)
+    r = run_cycle(make_vehicle(), lossy, triangle(), regen_ratio=1.0)
+    assert np.all(r.current_peak_A >= 0) and r.current_peak_A.max() <= limits.Imax * (1 + 1e-6)
+    assert np.all(r.current_peak_A[r.em_torque_Nm == 0] == 0)
+    k = int(np.argmax(r.em_torque_Nm))
+    j = int(np.argmin(np.abs(lossy.speed_grid - r.motor_speed_rad[k])))
+    i = int(np.argmin(np.abs(lossy.T_grid - r.em_torque_Nm[k])))
+    assert r.current_peak_A[k] == pytest.approx(np.hypot(lossy.id[i, j], lossy.iq[i, j]), rel=0.15)

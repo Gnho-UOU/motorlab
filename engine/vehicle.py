@@ -19,12 +19,13 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(os.environ.get("MOTORLAB_ROOT") or Path(__file__).resolve().parents[1])
 LBF = 4.4482216152605        # N
 MPH = 0.44704                # m/s
 LB = 0.45359237              # kg
@@ -83,6 +84,9 @@ class CycleResult:
     shaft_power_W: np.ndarray
     em_torque_Nm: np.ndarray         # 부호 있는 전자기 토크 (구동 +, 회생 −)
     elec_power_W: np.ndarray         # 부호 있는 전기 동력 (소비 +, 회수 −, 회수 비율 적용 후)
+    loss_power_W: np.ndarray         # 구간마다 모터 손실 동력 (구동: 입력 − 축 출력, 회생: 축 입력 − 전기 출력)
+    efficiency: np.ndarray           # 구간마다 모터 효율 (구동 = 축/전기, 회생 = 전기/축), 동작하지 않는 구간은 NaN
+    current_peak_A: np.ndarray       # 구간마다 상전류 첨두값 |Is| (효율맵의 최소 전류 운전점을 보간), 동작하지 않는 구간은 0
 
     @property
     def km_per_kWh(self) -> float:
@@ -160,6 +164,7 @@ class _MapLookup:
         self.Tg, self.Wg = np.asarray(em.T_grid, float), np.asarray(em.speed_grid, float)
         feas = np.asarray(em.feasible, bool)
         self.tmax = np.array([self.Tg[feas[:, j]].max() if feas[:, j].any() else -np.inf for j in range(len(self.Wg))])
+        self.Imag = np.hypot(np.asarray(em.id, float), np.asarray(em.iq, float))
         pm = np.asarray(em.P_mech, float)
         self.pmech = np.array([np.nanmax(pm[:, j]) if np.isfinite(pm[:, j]).any() else 0.0 for j in range(len(self.Wg))])
 
@@ -169,6 +174,11 @@ class _MapLookup:
     def tmax_at(self, w):
         j = int(np.clip(np.searchsorted(self.Wg, w) - 1, 0, len(self.Wg) - 2))
         return float(min(self.tmax[j], self.tmax[j + 1]))          # 속도 사이에서는 보수적으로 작은 쪽
+
+    def current(self, Te, w):
+        """(Te, ω)의 상전류 첨두값 |Is| (맵의 최소 전류 운전점을 같은 방식으로 보간). 보간할 수 없으면 NaN."""
+        w = float(np.clip(w, self.Wg[0], self.Wg[-1]))
+        return _bilinear(self.Tg, self.Wg, self.Imag, Te, w)
 
     def read(self, Te, w):
         """(P_in, deliverable, Te_used). 낼 수 없으면 Te를 tmax로 자르고, 그래도 없으면 P_in = NaN."""
@@ -205,6 +215,9 @@ def run_cycle(vehicle: Vehicle, eff_map, cycle: Cycle, regen_ratio: float) -> Cy
     p_shaft_drive = np.zeros(n)     # 구동에서 실제로 낸 축 동력
     Te_signed = np.zeros(n)
     short_w = np.zeros(n)           # 못 낸 바퀴 동력 [W]
+    loss_w = np.zeros(n)
+    eta_k = np.full(n, np.nan)
+    cur_k = np.zeros(n)
     brake_fric_w = np.zeros(n)
     w_eps = lk.Wg[0] * 0.5
     for k in range(n):
@@ -220,6 +233,9 @@ def run_cycle(vehicle: Vehicle, eff_map, cycle: Cycle, regen_ratio: float) -> Cy
                 short_w[k] = Ps
                 continue
             p_in[k], p_shaft_drive[k], Te_signed[k] = p, min(Ps, Ps_used), Te_used
+            c = lk.current(Te_used, w[k]); cur_k[k] = c if np.isfinite(c) else 0.0
+            loss_w[k] = p - p_shaft_drive[k]
+            eta_k[k] = p_shaft_drive[k] / p if p > 0 else np.nan
             if not ok:
                 short_w[k] = max(Ps - Ps_used, 0.0)
         else:                                           # 회생(제동)
@@ -239,6 +255,10 @@ def run_cycle(vehicle: Vehicle, eff_map, cycle: Cycle, regen_ratio: float) -> Cy
                 brake_fric_w[k] += (Te - Te_used) * w[k]
             p_gen[k] = max(2.0 * Te_used * w[k] - p, 0.0)
             Te_signed[k] = -Te_used
+            c = lk.current(Te_used, w[k]); cur_k[k] = c if np.isfinite(c) else 0.0
+            shaft_in = Te_used * w[k] + mech                    # 모터 축이 실제로 받은 동력
+            loss_w[k] = max(shaft_in - p_gen[k], 0.0)
+            eta_k[k] = p_gen[k] / shaft_in if shaft_in > 0 else np.nan
     E = lambda x: float(np.sum(np.asarray(x) * dt))
     pos, neg = np.clip(Pw, 0, None), np.clip(-Pw, 0, None)
     motoring = (Pw + L >= 0) & (w >= w_eps)
@@ -252,4 +272,5 @@ def run_cycle(vehicle: Vehicle, eff_map, cycle: Cycle, regen_ratio: float) -> Cy
         shortfall_time_s=float(np.sum(dt[short_w > 0])), shortfall_wheel_energy_J=E(short_w),
         t_s=t, v_ms=v, wheel_power_W=Pw, motor_speed_rad=w,
         shaft_power_W=np.where(motoring, p_shaft_drive, 0.0), em_torque_Nm=Te_signed, elec_power_W=p_in - p_gen,
+        loss_power_W=loss_w, efficiency=eta_k, current_peak_A=cur_k,
     )
